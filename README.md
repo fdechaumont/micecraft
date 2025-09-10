@@ -1,11 +1,28 @@
 # MiceCraft
 
-The repository contains:
+MiceCraft is designed to create, monitor and control smart habitats for animals.
 
-- the Python code to interact with the MiceCraft devices
-- the arduino code for the microcontrollers of each block
+> [!TIP]
+> Public release coming fall 2025.
 
-## Using the packages
+> [!CAUTION]
+> This MiceCraft repository is the public version and will get progressive updates from the private closed-beta repository
 
-TODO
+## Install package
+
+```
+pip install micecraft
+```
+
+## Website
+
+[https://micecraft.org](https://micecraft.org)
+
+## Main versions
+
+Version  | Change | Date
+------------- | ------------- | -------------
+0.0.?  | Setting up :tada: | September 2025
+
+
 
