@@ -26,7 +26,9 @@ pip install micecraft
 
 Version  | Change | Date
 ------------- | ------------- | -------------
-0.0.?  | Setting up :tada: | September 2025
+0.0.1  | Setting up :tada: | September 2025
+0.0.5 | Added: FED3 Device <br> Added: ComManager <br> Added: DeviceEvent <br> Added: Alarm <br> Added: Mail | September 2025
+
 
 
 
