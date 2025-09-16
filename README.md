@@ -18,6 +18,10 @@ pip install micecraft
 
 [https://micecraft.org](https://micecraft.org)
 
+## Wiki and docs:
+
+[MiceCraft Wiki](https://github.com/fdechaumont/micecraft/wiki)
+
 ## Github
 
 [https://github.org/micecraft]
