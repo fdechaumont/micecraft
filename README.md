@@ -18,6 +18,10 @@ pip install micecraft
 
 [https://micecraft.org](https://micecraft.org)
 
+## Github
+
+[https://github.org/micecraft]
+
 ## Main versions
 
 Version  | Change | Date
