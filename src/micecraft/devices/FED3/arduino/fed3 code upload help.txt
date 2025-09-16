@@ -1,0 +1,17 @@
+by Fabrice de Chaumont / 16 June 2023 
+
+In the arduino IDE:
+in preferences, additional boards manager urls, add this one: https://adafruit.github.io/arduino-board-index/package_adafruit_index.json
+
+The FED 3 is driven by a Feather MO board.
+
+in the board manager, get the SAMD Board package with Feather M0 in the description
+download the fed3 library
+
+connect the FED to the usb port that is inside the fed (about at the middle of the device) not the one on the side.
+switch on the device with the switch on the side
+to open the programming port, double click on the switch close to the inner usb port on the feather M0
+
+and you are now able to upload content to fed
+
+more info here: https://learn.adafruit.com/adafruit-feather-m0-basic-proto/setup
