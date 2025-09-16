@@ -84,7 +84,7 @@ class CameraRecorder(object):
     
     '''
     
-    def __init__(self, deviceNumber , bufferDurationS=5, showStream = True, name="SnapRecorder" , width=None, height = None, filePrefix = ""):
+    def __init__(self, deviceNumber : int, bufferDurationS=5, showStream = True, name="SnapRecorder" , width=None, height = None, filePrefix = ""):
         
         self.name = name
         self.deviceNumber = deviceNumber
@@ -182,9 +182,7 @@ class CameraRecorder(object):
         
         #out = cv.VideoWriter('output.mp4',fourcc, 30.0,(int(self.cap.get(3)),int(self.cap.get(4))))
                 
-        print( "start stream loop")
-        
-
+        print( "start streaming...")
         
         while self.cap.isOpened() and self.enabled:
             

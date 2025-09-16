@@ -12,9 +12,8 @@ if __name__ == '__main__':
     
     print("Sample Test CameraRecorder.")
         
-    camRecorder = CameraRecorder( deviceNumber = 1, bufferDurationS=20, showStream = True )
-    
-    #camRecorder2 = CameraRecorder( deviceNumber = 1, bufferDurationS=20, showStream = True )
+    camRecorder = CameraRecorder( deviceNumber = 0, bufferDurationS=20, showStream = True )
+        
     
     while True:
         
