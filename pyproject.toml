@@ -20,7 +20,8 @@ dependencies = [
   "pyserial",
   "dynamixel-sdk",
   "pyqt5",
-  "matplotlib"
+  "matplotlib",
+  "opencv-python"
 ]
 
 
