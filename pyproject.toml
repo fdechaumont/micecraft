@@ -1,6 +1,6 @@
 [project]
 name = "micecraft"
-version = "0.0.4"
+version = "0.0.5"
 description = "MiceCraft"
 authors = [
   { name = "Fabrice de Chaumont", email = "fabrice.de.chaumont@gmail.com" },
