@@ -6,6 +6,8 @@ Created on 11 avr. 2022
 from PyQt6 import QtCore
 from PySide6.QtGui import Qt
 
+from PyQt6.QtWidgets import QWidget, QPushButton, QLabel, QApplication
+from micecraft.soft.gui.WFed import WFed
 
 '''
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -29,7 +31,7 @@ from enum import Enum
 from random import randint
 from micecraft.soft.gui.WBlock import WBlock
 from micecraft.soft.gui.Wall import *
-from PyQt6.QtWidgets import QWidget, QPushButton, QLabel, QApplication
+
 
 #from micecraft.soft.gui.WWGate import WWGate
 #from micecraft.soft.gui.WWFed import WWWFed
@@ -228,13 +230,13 @@ class WWVisualExperiment(QWidget):
         #self.block.addWall( WWall ( WWallSide.LEFT ) )
 
 
-        '''
-        self.fedBlock1 = WWWFed(4.5, 1.25+shiftY , self )
+        
+        self.fedBlock1 = WFed(4.5, 1.25+shiftY , self )
         self.fedBlock1.setAngle( 90 )
         
-        self.fedBlockB = WWWFed(4.5, 2.25+shiftY , self )
+        self.fedBlockB = WFed(4.5, 2.25+shiftY , self )
         self.fedBlockB.setAngle( 90 )
-        '''
+        
         
 
         '''
