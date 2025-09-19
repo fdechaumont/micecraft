@@ -11,6 +11,7 @@ from PyQt5.Qt import QRect, QImage, QRegion, QLabel, QPushButton, QMenu
 
      
 import shutil
+from micecraft.soft.alarm.Alarm import Alarm
 
 
 

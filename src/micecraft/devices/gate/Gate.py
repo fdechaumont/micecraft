@@ -21,10 +21,16 @@ from inspect import getframeinfo, stack
 import socket
 
 import traceback
-from micecraft.soft.DeviceEvent.DeviceEvent import DeviceEvent
+
 from micecraft.devices.gate.Parameters import MAX_GATE_WEIGHT_LIST_SIZE,\
     CLOSED_DOOR_POSITION_RAT, CLOSED_DOOR_POSITION_MOUSE,\
-    OPENED_DOOR_POSITION_RAT, OPENED_DOOR_POSITION_MOUSE, NB_OBSERVATION_RFID
+    OPENED_DOOR_POSITION_RAT, OPENED_DOOR_POSITION_MOUSE, NB_OBSERVATION_RFID,\
+    DEFAULT_TORQUE_AND_SPEED_LIMIT_MOUSE, DEFAULT_TORQUE_LIMIT_RAT,\
+    DEFAULT_SPEED_LIMIT_RAT, NB_VALUE_TO_COMPUTE_MEAN_WEIGHT,\
+    NB_OBSERVATION_WEIGHT
+from micecraft.devices.antenna_rfid.AntennaRFID import AntennaRFID
+from micecraft.devices.gate.Door import Door
+from micecraft.soft.device_event.DeviceEvent import DeviceEvent
 
 def getCaller():
     

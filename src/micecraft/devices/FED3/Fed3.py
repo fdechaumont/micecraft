@@ -12,8 +12,8 @@ from random import randint
 import logging
 
 from micecraft.soft.alarm.Alarm import AlarmState, Alarm
-from micecraft.soft.ComManager.ComManager import ComManager
-from micecraft.soft.DeviceEvent.DeviceEvent import DeviceEvent
+from micecraft.soft.device_event.DeviceEvent import DeviceEvent
+from micecraft.soft.com_manager.ComManager import ComManager
 
 
 class Fed3(object):

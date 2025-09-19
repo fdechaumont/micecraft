@@ -14,7 +14,8 @@ import atexit
 from serial.serialutil import SerialException
 from datetime import datetime, timedelta
 from micecraft.soft.alarm.Alarm import Alarm, AlarmState
-from micecraft.soft.DeviceEvent.DeviceEvent import DeviceEvent
+from micecraft.soft.device_event.DeviceEvent import DeviceEvent
+
 
 class ComManager(object):
     

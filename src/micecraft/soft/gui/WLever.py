@@ -7,9 +7,9 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import  QPainter, QPaintEvent, QColor, QFont
 from PyQt5.Qt import QRect, QImage, QRegion, QLabel, QPushButton, QMenu
-from visualexperiments.Block import Block
+from micecraft.soft.gui.VisualDeviceAlarmStatus import VisualDeviceAlarmStatus
 
-from visualexperiments.VisualDeviceAlarmStatus import VisualDeviceAlarmStatus
+
 
 class WWWLever(QtWidgets.QWidget):
 

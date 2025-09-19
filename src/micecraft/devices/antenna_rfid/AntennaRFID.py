@@ -10,7 +10,8 @@ import logging
 
 from time import sleep
 import atexit
-from micecraft.soft.ComManager.ComManager import ComManager
+from micecraft.soft.com_manager.ComManager import ComManager
+
 
 class AntennaRFID(object):
     
