@@ -8,6 +8,7 @@ from PySide6.QtGui import Qt
 
 from PyQt6.QtWidgets import QWidget, QPushButton, QLabel, QApplication
 from micecraft.soft.gui.WFed import WFed
+from micecraft.soft.gui.WGate import WGate
 
 '''
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -192,14 +193,14 @@ class WWVisualExperiment(QWidget):
         self.block.addWall( Wall ( WallSide.LEFT , WallType.DOOR  ) )
         self.block.addWall( Wall ( WallSide.RIGHT ) )
 
-        '''
-        block3 = WWGate( 2.5,1+shiftY, self )
+        
+        block3 = WGate( 2.5,1+shiftY, self )
         block3.setName("Gate")        
         #block3.bindToGate( self.gate1 )
         
-        block3 = WWGate( 2.5,2+shiftY, self )
+        block3 = WGate( 2.5,2+shiftY, self )
         block3.setName("Gate")
-        '''
+        
         
         self.block = WBlock( 0.5,1+shiftY , self )
         self.block.setName("A")        
