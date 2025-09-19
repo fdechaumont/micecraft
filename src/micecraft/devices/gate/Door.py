@@ -7,12 +7,9 @@ import numpy as np
 from enum import Enum
 import time
 import logging
+from micecraft.devices.gate.Parameters import *
+from micecraft.soft.device_event.DeviceEvent import DeviceEvent
 
-from blocks.autogate.Parameters import DEFAULT_TORQUE_AND_SPEED_LIMIT_MOUSE,\
-    CLOSED_DOOR_POSITION_MOUSE, OPENED_DOOR_POSITION_MOUSE, DURATION_OF_LIDAR_CLOSE_TEST,\
-    RE_CLOSING_THRESHOLD_PERCENTAGE, OPEN_CLOSE_SENSITIVITY_PERCENTAGE
-from blocks.DeviceEvent import DeviceEvent
-from blocks.autogate.CodeMonitoring import CodeMonitoring
 
 class DoorStatus(Enum):
     OPENED = 0 # door is opened

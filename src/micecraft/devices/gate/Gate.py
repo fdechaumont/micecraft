@@ -31,6 +31,9 @@ from micecraft.devices.gate.Parameters import MAX_GATE_WEIGHT_LIST_SIZE,\
 from micecraft.devices.antenna_rfid.AntennaRFID import AntennaRFID
 from micecraft.devices.gate.Door import Door
 from micecraft.soft.device_event.DeviceEvent import DeviceEvent
+from micecraft.devices.gate.dxl_control.MotorManager import MotorManager
+from micecraft.devices.gate.dxl_control.Ax12Motor import Ax12Motor
+from micecraft.devices.gate.arduino_reader.ArduinoReader import ArduinoReader
 
 def getCaller():
     
