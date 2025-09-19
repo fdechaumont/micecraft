@@ -6,10 +6,11 @@ Created on 14 mars 2023
 from PyQt6.QtGui import QPaintEvent, QPainter, QFont, QPen
 from PyQt6.QtCore import QRect, Qt
 from PyQt6 import *
+from PyQt6.QtWidgets import QWidget
 
 import os
 from micecraft.soft.gui.Wall import *
-from PyQt6.QtWidgets import QWidget
+
 
 os.environ["QT_ENABLE_HIGHDPI_SCALING"]   = "1"
 os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
