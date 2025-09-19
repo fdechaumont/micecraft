@@ -24,6 +24,7 @@ if __name__ == '__main__':
         print("t: add random text")
         print("y: clear text")
         print("+: save from 5s before to 5s after call")
+        print("w: add a text that will appear in a given time interval only")
         print("x: quit")
         
         command = input("command:")
@@ -49,9 +50,10 @@ if __name__ == '__main__':
             text = CRText( "recorded 5 seconds before call to 5 seconds after call", 10, 10, fontScale=0.5,centerX = True )
             camRecorder.delayedSave( 5, minDateTime= datetime.datetime.now() - datetime.timedelta(seconds=5), textList =[text] )
             
-        if "t" in command:
-            
+        if "t" in command:            
             camRecorder.addText( CRText( "my text", randint(0,640),randint(0,480), centered=True, color = (randint(0,255),randint(0,255),randint(0,255)) , bgColor= (randint(0,255),randint(0,255),randint(0,255) ) ) ) 
             
-        
+        if "w" in command:
+            text = CRText( "this will appear 1s before call, up to 1s after call" , 10 , 10 , centered=False , color=(0,0,255), showBackGround = False, minDateTime= datetime.datetime.now() - datetime.timedelta(seconds=1) , maxDateTime = datetime.datetime.now() + datetime.timedelta(seconds=1) )
+            camRecorder.delayedSave( 5, minDateTime= datetime.datetime.now() - datetime.timedelta(seconds=5), textList =[text] )
     
