@@ -18,9 +18,13 @@ pip install micecraft
 
 [https://micecraft.org](https://micecraft.org)
 
+## Wiki and docs:
+
+[MiceCraft Wiki](https://github.com/fdechaumont/micecraft/wiki)
+
 ## Github
 
-[https://github.org/micecraft]
+[MiceCraft GitHub](https://github.org/micecraft)
 
 ## Main versions
 
@@ -28,7 +32,8 @@ Version  | Change | Date
 ------------- | ------------- | -------------
 0.0.1  | Setting up :tada: | September 2025
 0.0.5 | Added: FED3 Device <br> Added: ComManager <br> Added: DeviceEvent <br> Added: Alarm <br> Added: Mail | September 2025
-0.0.6 | Added: CameraRecorder & associated example | September 2025
+0.0.6 | Added: CameraRecorder & associated example + wiki | September 2025
+0.0.7 | Added: Lever | September 2025
 
 
 
