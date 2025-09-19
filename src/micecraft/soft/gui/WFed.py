@@ -1,17 +1,17 @@
 '''
 Created on 14 mars 2023
 
-@author: Fab
+@author: Fabrice de Chaumont
 '''
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import  QPainter, QPaintEvent, QColor, QFont
-from PyQt5.Qt import QRect, QImage, QRegion, QLabel, QPushButton
-from visualexperiments.Block import Block
-from PyQt5.Qt import QRect, QImage, QRegion, QLabel, QPushButton, QMenu
+
+from PyQt6.QtGui import QPaintEvent, QPainter, QFont, QPen, QColor
+from PyQt6.QtCore import QRect, Qt
+from PyQt6 import *
+from PyQt6.QtWidgets import QWidget, QMenu
+
 import logging
 
-class WWWFed(QtWidgets.QWidget):
+class WFed(QWidget):
 
     def __init__(self, x , y , *args, **kwargs):
         super().__init__( *args, **kwargs)
@@ -88,7 +88,7 @@ class WWWFed(QtWidgets.QWidget):
         
         menu.addSection("Orders")
         
-        action = menu.exec_(self.mapToGlobal(event.pos()))
+        action = menu.exec(  event.globalPos() )
         if self.fed == None:
             print("No fed bound to this graphical component.")
             return
@@ -148,7 +148,7 @@ class WWWFed(QtWidgets.QWidget):
         font = QFont('Times', 15 )
         font.setBold(True)
         painter.setFont( font )
-        painter.drawText( QRect( 0, int( self.height()/2.5 ) , int ( self.width() ) , int ( self.height()/2) ), Qt.AlignCenter, self.name )
+        painter.drawText( QRect( 0, int( self.height()/2.5 ) , int ( self.width() ) , int ( self.height()/2) ), QtCore.Qt.AlignmentFlag.AlignCenter, self.name )
         
         # draw status
         painter.setPen(QtGui.QPen(QtGui.QColor( 10,10,10), 7)) # no status
@@ -166,31 +166,31 @@ class WWWFed(QtWidgets.QWidget):
     def mousePressEvent(self, event):
         self.__mousePressPos = None
         self.__mouseMovePos = None
-        if event.button() == QtCore.Qt.LeftButton:
-            self.__mousePressPos = event.globalPos()
-            self.__mouseMovePos = event.globalPos()
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.__mousePressPos = event.globalPosition().toPoint()
+            self.__mouseMovePos = event.globalPosition().toPoint()
 
-        super(WWWFed, self).mousePressEvent(event)
+        super(WFed, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-        if event.buttons() == QtCore.Qt.LeftButton:
+        if event.buttons() == Qt.MouseButton.LeftButton:
             # adjust offset from clicked point to origin of widget
             currPos = self.mapToGlobal(self.pos())
-            globalPos = event.globalPos()
+            globalPos = event.globalPosition().toPoint()
             diff = globalPos - self.__mouseMovePos
             newPos = self.mapFromGlobal(currPos + diff)
             self.move(newPos)
 
             self.__mouseMovePos = globalPos
 
-        super(WWWFed, self).mouseMoveEvent(event)
+        super(WFed, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if self.__mousePressPos is not None:
-            moved = event.globalPos() - self.__mousePressPos 
+            moved = event.globalPosition().toPoint() - self.__mousePressPos 
             if moved.manhattanLength() > 3:
                 event.ignore()
                 return
 
-        super(WWWFed, self).mouseReleaseEvent(event)
+        super(WFed, self).mouseReleaseEvent(event)
 
