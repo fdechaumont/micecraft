@@ -23,39 +23,6 @@ class WFed(QWidget):
         
         self.name= "fed"
         self.fed = None
-
-        '''        
-        layout = QtWidgets.QVBoxLayout()
-        title = QLabel( "Fed" , objectName="balanceTitle" )
-        title.setAlignment(Qt.AlignCenter)
-        layout.addWidget( title )
-        self.balanceWidget = MplCanvas (self, width=5, height=3 )        
-        self.balanceWidget.axes.plot([0,1,2,3,4], [10,1,20,3,40])
-        self.balanceAx = self.balanceWidget.axes        
-        self.balanceAx.set_ylabel("weight (g)")
-        plt.tight_layout()
-        layout.addWidget( self.balanceWidget )
-        tareButton= QPushButton("Force tare balance")
-        layout.addWidget( tareButton )
-        tareButton.clicked.connect( self.tare )
-        layout.addStretch()        
-        self.setLayout(layout)
-        '''
-    
-    '''
-    def tare(self):
-        print( "tare")
-        self.balanceAx.clear()
-        
-        a = []
-        b = []
-        for i in range(10):
-            a.append( randint(0,40) )
-            b.append( randint(0,40) )
-            
-        self.balanceWidget.axes.plot(a,b)
-        self.balanceWidget.fig.canvas.draw()
-    ''' 
     
     def bindToFed(self , fed ):
         self.fed = fed
@@ -118,14 +85,11 @@ class WFed(QWidget):
     def paintEvent(self, event: QPaintEvent):
         
         
-        
         super().paintEvent( event )
         
         painter = QPainter()
         painter.begin(self)
         
-        #painter.drawRect( 0, 0 , self.width()-1 , self.height()-1 )
-
         painter.translate(self.width()/2,self.height()/2);
         painter.rotate(self.angle);
         painter.translate(-self.width()/2,-self.height()/2);
@@ -134,8 +98,6 @@ class WFed(QWidget):
         painter.fillRect(0, int ( self.height()/2 ) , int ( self.width() ) , int ( self.height()/2 ), QColor(200, 200, 200))
         painter.setPen(QtGui.QPen(QtGui.QColor(100,100,100), 4)) 
         painter.drawRect(0, int ( self.height()/2 ), int ( self.width() ), int ( self.height()/2 ) )
-        
-        
         
         # nose poke 1
         painter.fillRect( int ( 1*self.width()/6 ), int ( 3*self.height()/4 ), int ( self.width()/6 ), int ( self.height( ) ), QColor(100, 100, 100))
