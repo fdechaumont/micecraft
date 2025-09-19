@@ -22,14 +22,13 @@ class ComManager(object):
     Communication manager via COM port with the following features:
      
     connect/reconnect and error handling 
-    auto release resources on exit with atexit (done)
-    auto check device speed (done)
+    auto release resources on exit with atexit (done)    
     alarm handling (done)
     ping mode ( done )
     
     Restrictions:
     - String received should all finish by a \n, so that the system knows that a message is complete.
-    - String sent d have a \n added to their end, so that the receiver on the other side can use it.
+    - String sent have a \n added to their end, so that the receiver on the other side can use it.
     '''
 
 
