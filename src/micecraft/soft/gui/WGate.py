@@ -1,21 +1,19 @@
 '''
 Created on 14 mars 2023
 
-@author: Fab
+@author: Fabrice de Chaumont
 '''
+from micecraft.soft.gui.WBlock import WBlock
+from PyQt6.QtWidgets import QMenu
+from micecraft.soft.gui.VisualDeviceAlarmStatus import VisualDeviceAlarmStatus
+from micecraft.devices.gate.Gate import GateOrder
 
-'''
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import  QPainter, QPaintEvent, QColor, QFont
-from PyQt5.Qt import QRect, QImage, QRegion, QLabel, QPushButton, QMenu
-'''
-from PyQt6.QtGui import QPaintEvent, QPainter, QFont, QPen
+from PyQt6.QtGui import QPaintEvent, QPainter, QFont, QPen, QColor
 from PyQt6.QtCore import QRect, Qt
 from PyQt6 import *
 
 import logging
-from visualexperiments.VisualDeviceAlarmStatus import VisualDeviceAlarmStatus
+
 
 StyleSheet = '''
 
@@ -28,7 +26,7 @@ StyleSheet = '''
 }
 
 '''
-class WWGate(Block):
+class WGate(WBlock):
     
     def __init__(self, x,y, *args, **kwargs ):
         
@@ -52,8 +50,6 @@ class WWGate(Block):
         
         self.visualDeviceArduinoAlarmStatus = VisualDeviceAlarmStatus(  )
         self.visualDeviceRFIDAlarmStatus = VisualDeviceAlarmStatus(  )
-        
-        
             
         if self.gate != None:
             antenna = self.gate.antennaRFID
@@ -62,25 +58,7 @@ class WWGate(Block):
                 y = 120
                 self.visualDeviceRFIDAlarmStatus.d
         
-        '''
-        self.setStyleSheet(StyleSheet)
-        self.tareButton = QPushButton("Tare" , self , objectName="button"  )
-        self.tareButton.clicked.connect( self.tareScale )
-        if self.angle==90 or self.angle==180:
-            self.tareButton.setGeometry( 10,100,55,20)
-        else:
-            self.tareButton.setGeometry( 70,150,55,20)
-        '''
         
-        '''
-        self.refresher = QtCore.pyqtSignal()
-        self.refresher.connect(self.on_refresh_data)
-        thread = threading.Thread( target=self.monitorGateGUI , name = f"Thread VisualGate - {name}")
-        #self.data_downloaded = QtCore.pyqtSignal(object)
-        thread.start()
-        time.sleep(1)
-        '''
-    
     def contextMenuEvent(self, event):
        
         menu = QMenu(self)
@@ -99,14 +77,15 @@ class WWGate(Block):
         subMenu = menu.addMenu( "Tare with animal(s) in gate (scale shift)" )
         actionScaleWithAnimalDic= {}        
                     
-        for i in range( 1 , 11 ):
-            plural = "s"
-            
-            if i == 1:
-                plural=""
-            gr = round ( self.gate.mouseAverageWeight * i , 2 ) 
-            item = subMenu.addAction( f"{i} animal{plural} in gate ({gr} grams)" )
-            actionScaleWithAnimalDic[item] = gr
+        if self.gate != None:
+            for i in range( 1 , 11 ):
+                plural = "s"
+                
+                if i == 1:
+                    plural=""
+                gr = round ( self.gate.mouseAverageWeight * i , 2 ) 
+                item = subMenu.addAction( f"{i} animal{plural} in gate ({gr} grams)" )
+                actionScaleWithAnimalDic[item] = gr
         # tare with animal menu --------------- end    
             
         menu.addSeparator()
@@ -117,14 +96,7 @@ class WWGate(Block):
             actionDic[item] = order
         
         menu.addSeparator()
-        
-        '''
-        visualCueAction = menu.addAction("Visual cues")
-        visualCueAction.setCheckable( True )        
-        if self.experiment.visualCueEnabled:
-            visualCueAction.setChecked( True )
-        '''
-            
+                    
         forceScaleDisabled = menu.addAction("Use real scale value (normal mode)")
         forceScaleDisabled.setCheckable( True )
         if self.gate!=None:
@@ -181,7 +153,7 @@ class WWGate(Block):
                 forceRFID4.setChecked( True )
         
         
-        action = menu.exec_(self.mapToGlobal(event.pos()))
+        action = menu.exec(  event.globalPos() )
         
         if self.gate == None:
             print("Can't perform action: no gate linked to this visual component.")
@@ -193,22 +165,22 @@ class WWGate(Block):
         
         if action == openA:
             self.gate.doorA.open()
-            logging.info(f"wwgate *{self.name}* user action: door a open.")
+            logging.info(f"wgate *{self.name}* user action: door a open.")
         if action == openB:
             self.gate.doorB.open()
-            logging.info(f"wwgate *{self.name}* user action: door b open.")
+            logging.info(f"wgate *{self.name}* user action: door b open.")
         if action == closeA:
             self.gate.doorA.close()
-            logging.info(f"wwgate *{self.name}* user action: door a close.")
+            logging.info(f"wgate *{self.name}* user action: door a close.")
         if action == closeB:
             self.gate.doorB.close()
-            logging.info(f"wwgate *{self.name}* user action: door b close.")
+            logging.info(f"wgate *{self.name}* user action: door b close.")
         if action == tareZero:
-            logging.info(f"wwgate *{self.name}* user action: tare.")
+            logging.info(f"wgate *{self.name}* user action: tare.")
             self.gate.tare()
         if action in actionDic:        
             self.gate.setOrder( actionDic[action] )
-            logging.info(f"wwgate *{self.name}* user set action: *{actionDic[action]}*.")
+            logging.info(f"wgate *{self.name}* user set action: *{actionDic[action]}*.")
             
         if action == forceScale0:
             self.gate.forceWeightValue( 0 )
@@ -248,19 +220,7 @@ class WWGate(Block):
         painter.translate( -rect.center )
         painter.drawText( txt )
         painter.load()
-    '''
-    void CustomLabel::paintEvent(QPaintEvent* e)    
-    {
-    QPainter painter(this);
-
-    painter.translate(m_rect.center());
-    painter.rotate(m_rotation);
-    painter.translate(-m_rect.center());
-    painter.drawText(m_rect, Qt::AlignHCenter | Qt::AlignVCenter, m_text);
-
-    QWidget::paintEvent(e);
-    }    
-    '''
+    
     
     def drawArrowToA(self , painter ):
         painter.drawLine(50+10,100,150,100)
@@ -287,17 +247,6 @@ class WWGate(Block):
         # tunnel
         painter.fillRect(0, 100-25, 200, 50, QColor(240, 240, 240))        
         painter.setPen(QtGui.QPen(QtGui.QColor(100,100,100), 4))
-        
-        '''
-        try:
-            if self.gate.isWeightOfOneMouse( self.G_CurrentWeight ):
-                painter.fillRect(0, 100-25, 200, 50, QColor(193, 225, 193))
-            if self.G_CurrentWeight < self.gate.mouseAverageWeight /4:
-                painter.fillRect(0, 100-25, 200, 50, QColor( 174, 214, 241 ))
-        except:
-            pass
-        '''
-        
         
         painter.drawRect(0, 100-25,200, 50)
         
@@ -371,10 +320,10 @@ class WWGate(Block):
         # jam A
         if self.angle==180:
             self.checkAngle180( painter )
-            painter.drawText( QRect( 120,5,80,30) , Qt.AlignCenter, f"jam open/close:\n{self.G_JamAOpen} / {self.G_JamAClose}" )
+            painter.drawText( QRect( 120,5,80,30) , QtCore.Qt.AlignmentFlag.AlignCenter, f"jam open/close:\n{self.G_JamAOpen} / {self.G_JamAClose}" )
             self.checkAngle180( painter )
         else:
-            painter.drawText( QRect( 10,0,80,30) , Qt.AlignCenter, f"jam open/close:\n{self.G_JamAOpen} / {self.G_JamAClose}" )
+            painter.drawText( QRect( 10,0,80,30) , QtCore.Qt.AlignmentFlag.AlignCenter, f"jam open/close:\n{self.G_JamAOpen} / {self.G_JamAClose}" )
         
         # door B
         openPercentB = 0
@@ -399,10 +348,10 @@ class WWGate(Block):
         # jam B
         if self.angle==180:
             self.checkAngle180( painter )
-            painter.drawText( QRect( 10,5,80,30) , Qt.AlignCenter, f"jam open/close:\n{self.G_JamBOpen} / {self.G_JamBClose}" )
+            painter.drawText( QRect( 10,5,80,30) , QtCore.Qt.AlignmentFlag.AlignCenter, f"jam open/close:\n{self.G_JamBOpen} / {self.G_JamBClose}" )
             self.checkAngle180( painter )
         else:
-            painter.drawText( QRect( 110,0,80,30) , Qt.AlignCenter, f"jam open/close:\n{self.G_JamBOpen} / {self.G_JamBClose}" )
+            painter.drawText( QRect( 110,0,80,30) , QtCore.Qt.AlignmentFlag.AlignCenter, f"jam open/close:\n{self.G_JamBOpen} / {self.G_JamBClose}" )
         
         
         # draw A & B letters
@@ -413,34 +362,28 @@ class WWGate(Block):
         
         if self.angle == 180:
             self.checkAngle180( painter )
-            painter.drawText( QRect( 150,125,50,75), Qt.AlignCenter, "A" )
-            painter.drawText( QRect( 10,125,50,75) , Qt.AlignCenter, "B" )
+            painter.drawText( QRect( 150,125,50,75), QtCore.Qt.AlignmentFlag.AlignCenter, "A" )
+            painter.drawText( QRect( 10,125,50,75) , QtCore.Qt.AlignmentFlag.AlignCenter, "B" )
             self.checkAngle180( painter )
         else:
-            painter.drawText( QRect( 0,125,50,75) , Qt.AlignCenter, "A" )
-            painter.drawText( QRect( 140,125,50,75) , Qt.AlignCenter, "B" )
+            painter.drawText( QRect( 0,125,50,75) , QtCore.Qt.AlignmentFlag.AlignCenter, "A" )
+            painter.drawText( QRect( 140,125,50,75) , QtCore.Qt.AlignmentFlag.AlignCenter, "B" )
             
     
         if self.gate != None:
             
             self.updateGateInfo()
-            
-            '''
-            painter.translate(100,100);
-            painter.rotate(-self.angle);
-            painter.translate(-100,-100);
-            '''
-            
+                        
             # display weight
             painter.setPen(QtGui.QPen(QtGui.QColor( 20, 20, 20), 4))
             font = QFont('Times', 10)
             painter.setFont( font )
             self.checkAngle180( painter )
-            painter.drawText( QRect( 0,75,200,50) , Qt.AlignCenter, f"{str(round(self.G_CurrentWeight,2))} g [{int(self.gate.mouseAverageWeight * (1-self.gate.weightWindowFactor))}g/{int(self.gate.mouseAverageWeight * (1+self.gate.weightWindowFactor))}g]" )
+            painter.drawText( QRect( 0,75,200,50) , QtCore.Qt.AlignmentFlag.AlignCenter, f"{str(round(self.G_CurrentWeight,2))} g [{int(self.gate.mouseAverageWeight * (1-self.gate.weightWindowFactor))}g/{int(self.gate.mouseAverageWeight * (1+self.gate.weightWindowFactor))}g]" )
 
             if self.gate.scaleShift!=0:
                 painter.setPen(QtGui.QPen(QtGui.QColor( 255, 25, 25), 4))
-                painter.drawText( QRect( 0,75+10,200,50+10) , Qt.AlignCenter, f"SCALE SHIFT ACTIVE: +{self.gate.scaleShift} g" )
+                painter.drawText( QRect( 0,75+10,200,50+10) , QtCore.Qt.AlignmentFlag.AlignCenter, f"SCALE SHIFT ACTIVE: +{self.gate.scaleShift} g" )
 
             self.checkAngle180( painter )
                             
@@ -453,11 +396,11 @@ class WWGate(Block):
                     order = order.split(".")[-1]
             self.checkAngle180( painter )
             painter.setPen(QtGui.QPen(QtGui.QColor( 20, 20, 20), 4))
-            painter.drawText( QRect( 0,15,200,50) , Qt.AlignCenter, f"{order}" )
+            painter.drawText( QRect( 0,15,200,50) , QtCore.Qt.AlignmentFlag.AlignCenter, f"{order}" )
 
             if self.gate.rfidControlEnabled:
                 if self.gate.antennaRFID.enabled:
-                    painter.drawText( QRect( 0,140,200,50) , Qt.AlignCenter, f"Reading RFID" )
+                    painter.drawText( QRect( 0,140,200,50) , QtCore.Qt.AlignmentFlag.AlignCenter, f"Reading RFID" )
                     
             self.checkAngle180( painter )
                     
@@ -478,43 +421,7 @@ class WWGate(Block):
                 self.checkAngle180( painter )
                 self.visualDeviceRFIDAlarmStatus.draw( painter, antenna, ellipseRect = QRect( 22+x, 60+y,10,10 ), textRect = QRect( -25+x, 13+y , 100,50 ), textInNormalState="RFID"  )
                 self.checkAngle180( painter )
-        # draw action
         
-        '''
-        font = QFont('Times', 8)
-        font.setBold(True)
-        painter.setFont( font )
-        x=10
-        y=30
-        painter.fillRect( x, y, 50, 20, QColor(100, 100, 100))
-        painter.setPen(QtGui.QPen(QtGui.QColor( 200, 200, 200), 4))
-        painter.drawText( QRect( x,y,50,20) , Qt.AlignCenter, "Tare" )
-        ''' 
-        
-        
-        #print( Block.blockList )
-        
-        '''
-        if ( self.orientation == WWOrientation.LEFT or self.orientation == WWOrientation.RIGHT ):             
-            
-        if ( self.orientation == WWOrientation.TOP or self.orientation == WWOrientation.BOTTOM ):             
-            painter.fillRect(0, 100-25, 200, 50, QColor(240, 240, 240))
-            painter.setPen(QtGui.QPen(QtGui.QColor(100,100,100), 4)) 
-            painter.drawRect(0, 100-25,200, 50)
-        '''
-
-        
-        '''
-        painter.setPen(QtGui.QPen(QtGui.QColor(100,100,100), 4)) 
-        painter.drawRect(0,0,200,200)
-        
-        #painter.drawEllipse(0, 0, 40, 40)
-        painter.setPen(QtGui.QPen(QtGui.QColor(200,200,200), 4))
-        font = QFont('Times', 30)
-        font.setBold(True)
-        painter.setFont( font )
-        painter.drawText( QRect( 0,0,200,50) , Qt.AlignCenter, self.name )
-        '''
         painter.end()
         
     def gateListener(self , event ):
@@ -566,36 +473,7 @@ class WWGate(Block):
         self.G_LidarExtB = self.gate.doorB.getLidarExt( )
         self.G_LidarInB = self.gate.doorB.getLidarIn( )
         self.G_enableLidar = self.gate.enableLIDAR
-        
-        '''
-        self.titleLabel.setText( self.gate.name )
-        self.orderLabel.setText( str( self.gate.order ) )
-        
-        self.wDoorA.progressBar.setValue( int( self.gate.doorA.cacheOpenPercentage ) )
-        self.wDoorA.orderLabel.setText( str( self.gate.doorA.doorOrder ) )
-        self.wDoorA.statusLabel.setText( str( self.gate.doorA.status ) )
-        
-        self.wDoorB.progressBar.setValue( int ( self.gate.doorB.cacheOpenPercentage ) )
-        self.wDoorB.orderLabel.setText( str( self.gate.doorB.doorOrder ) )
-        self.wDoorB.statusLabel.setText( str ( self.gate.doorB.status ) )
-        
-        self.wBalance.setMeasures( self.gate.weightList, self.gate.mouseAverageWeight )
-        
-        #self.speed.setValue( self.gate.doorA.speedLimit )
-        
-        for r in self.RFIDDetectionList:                
-            self.rfid.addRFID( r )
-        self.RFIDDetectionList.clear()
-                        
-        self.wLogic.setLogic( self.gate.logicList , self.gate.logicCursor )
-        
-        # lidar reading
-        detectionStyle = "QLabel { padding:10px; qproperty-alignment: AlignCenter; background-color: orange; }"
-        noDetectionStyle = "QLabel { padding:10px; qproperty-alignment: AlignCenter; background-color: lightgreen; }"
-
-        
-        '''
-        
+                
 
         self.gate.lock.release()
         
