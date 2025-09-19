@@ -16,7 +16,7 @@ from micecraft.soft.ComManager.ComManager import ComManager
 from micecraft.soft.DeviceEvent.DeviceEvent import DeviceEvent
 
 
-class Fed3Manager(object):
+class Fed3(object):
 
     
     def __init__(self, comPort = "COM79" , name="Fed3"):
