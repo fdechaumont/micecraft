@@ -4,10 +4,14 @@ Created on 6 janv. 2025
 @author: Fab
 '''
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import  QPainter, QPaintEvent, QColor, QFont
-from PyQt5.Qt import QRect, QImage, QRegion, QLabel, QPushButton, QMenu
+from PyQt6 import QtCore
+from PySide6.QtGui import Qt, QColor
+
+from PyQt6.QtWidgets import QWidget, QPushButton, QLabel, QApplication, QMenuBar
+from PyQt6.QtGui import QPaintEvent, QFont, QPen, QColor, QPainter
+from PyQt6.QtCore import QRect
+
+from PyQt6 import *
 
 class VisualDeviceAlarmStatus(object):
         
