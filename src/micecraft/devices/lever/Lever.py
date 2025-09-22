@@ -10,8 +10,9 @@ Created on 30 mars 2023
 from datetime import datetime
 
 import logging
-from micecraft.soft.ComManager.ComManager import ComManager
-from micecraft.soft.DeviceEvent.DeviceEvent import DeviceEvent
+from micecraft.soft.com_manager.ComManager import ComManager
+from micecraft.soft.device_event.DeviceEvent import DeviceEvent
+
 
 
 class Lever(object):
