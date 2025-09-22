@@ -3,15 +3,22 @@ Created on 14 mars 2023
 
 @author: Fab
 '''
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import  QPainter, QPaintEvent, QColor, QFont
-from PyQt5.Qt import QRect, QImage, QRegion, QLabel, QPushButton, QMenu
+
 from micecraft.soft.gui.VisualDeviceAlarmStatus import VisualDeviceAlarmStatus
 
+from PyQt6 import QtCore
+from PySide6.QtGui import Qt, QColor
+
+from PyQt6.QtWidgets import QWidget, QPushButton, QLabel, QApplication, QMenuBar,\
+    QMenu
+from PyQt6.QtGui import QPaintEvent, QFont, QPen, QColor, QPainter
+from PyQt6.QtCore import QRect
+
+from PyQt6 import *
 
 
-class WWWLever(QtWidgets.QWidget):
+
+class WLever(QWidget):
 
     def __init__(self, x , y , *args, **kwargs):
         super().__init__( *args, **kwargs)
@@ -86,7 +93,7 @@ class WWWLever(QtWidgets.QWidget):
             leverPress.setDisabled( True )
             switchLight.setDisabled( True )
         
-        action = menu.exec_(self.mapToGlobal(event.pos()))
+        action = menu.exec(  event.globalPos() )
         
         if action == leverPress:            
             self.lever.press()
@@ -182,14 +189,15 @@ class WWWLever(QtWidgets.QWidget):
     def mousePressEvent(self, event):
         self.__mousePressPos = None
         self.__mouseMovePos = None
-        if event.button() == QtCore.Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:            
             self.__mousePressPos = event.globalPos()
             self.__mouseMovePos = event.globalPos()
 
-        super(WWWLever, self).mousePressEvent(event)
+        super(WLever, self).mousePressEvent(event)
 
+    '''
     def mouseMoveEvent(self, event):
-        if event.buttons() == QtCore.Qt.LeftButton:
+        if event.buttons() == Qt.MouseButton.LeftButton:
             # adjust offset from clicked point to origin of widget
             currPos = self.mapToGlobal(self.pos())
             globalPos = event.globalPos()
@@ -199,7 +207,7 @@ class WWWLever(QtWidgets.QWidget):
 
             self.__mouseMovePos = globalPos
 
-        super(WWWLever, self).mouseMoveEvent(event)
+        super(WLever, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if self.__mousePressPos is not None:
@@ -208,5 +216,5 @@ class WWWLever(QtWidgets.QWidget):
                 event.ignore()
                 return
 
-        super(WWWLever, self).mouseReleaseEvent(event)
-
+        super(WLever, self).mouseReleaseEvent(event)
+    '''
