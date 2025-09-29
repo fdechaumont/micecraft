@@ -400,12 +400,14 @@ if __name__ == "__main__":
     
     sys.excepthook = excepthook
 
+    '''
     # setup logfiles    
     logFile = "testLog - "+ datetime.now().strftime("%Y-%m-%d %Hh%Mm%Ss") + ".log.txt"    
     print("Logfile: " , logFile )    
     logging.basicConfig(level=logging.INFO, filename=logFile, format='%(asctime)s.%(msecs)03d: %(message)s', datefmt='%Y-%m-%d %H:%M:%S' )        
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))        
     logging.info('Application started')
+    '''
     
     def exitHandler():
         visualExperiment.stop()
