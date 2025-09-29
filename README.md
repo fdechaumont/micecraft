@@ -34,6 +34,7 @@ Version  | Change | Date
 0.0.5 | Added: FED3 Device <br> Added: ComManager <br> Added: DeviceEvent <br> Added: Alarm <br> Added: Mail | September 2025
 0.0.6 | Added: CameraRecorder & associated example + wiki | September 2025
 0.0.7 | Added: Lever | September 2025
+0.0.8 | Added: <br>A lot of documentation (in the wiki)<br>Gate <br>Events <br>Report <br>First examples <br>Network <br>RFID reader| September 2025
 
 
 
