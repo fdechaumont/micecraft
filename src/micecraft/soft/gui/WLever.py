@@ -7,10 +7,9 @@ Created on 14 mars 2023
 from micecraft.soft.gui.VisualDeviceAlarmStatus import VisualDeviceAlarmStatus
 
 from PyQt6 import QtCore
-from PySide6.QtGui import Qt, QColor
 from PyQt6.QtWidgets import QWidget, QPushButton, QLabel, QApplication, QMenuBar, QMenu
 from PyQt6.QtGui import QPaintEvent, QFont, QPen, QColor, QPainter
-from PyQt6.QtCore import QRect
+from PyQt6.QtCore import QRect, Qt
 from PyQt6 import *
 
 class WLever(QWidget):

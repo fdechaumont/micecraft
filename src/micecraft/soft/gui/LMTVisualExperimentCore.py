@@ -4,7 +4,6 @@ Created on 11 avr. 2022
 @author: Fab
 '''
 from PyQt6 import QtCore
-from PySide6.QtGui import Qt
 
 from PyQt6.QtWidgets import QWidget, QPushButton, QLabel, QApplication
 from micecraft.soft.gui.WFed import WFed

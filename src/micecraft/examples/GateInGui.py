@@ -17,9 +17,9 @@ from PyQt6.QtWidgets import QWidget, QApplication
 from PyQt6 import QtCore
 from PyQt6.QtGui import QPainter, QPaintEvent
 from micecraft.soft.gui.WGate import WGate
+from PyQt6.QtCore import Qt
 
-
-class WVisualExperiment(QWidget):
+class WVisualExperimentGateInGUI(QWidget):
     
     refresher = QtCore.pyqtSignal()
     
@@ -72,11 +72,18 @@ class WVisualExperiment(QWidget):
         gate = WGate( 1 , 0 , self )
         
         self.resize(800,400)
-        self.setWindowTitle( "MiceCraft - Lever display test" )
+        self.setWindowTitle( "MiceCraft - Gate display test" )
                 
         self.thread = threading.Thread( target=self.monitorGUI )
         self.refresher.connect(self.on_refresh_data)
         self.thread.start()
+
+        # the following show trick is needed if an input (the console) as taken the focus before, else the window will not show        
+        self.setWindowFlag( Qt.WindowType.WindowStaysOnTopHint, True);
+        self.show( )
+        self.setWindowFlag( Qt.WindowType.WindowStaysOnTopHint, False);
+        self.show( )
+
     
     def paintEvent(self, event: QPaintEvent):
                 
@@ -103,9 +110,9 @@ if __name__ == "__main__":
     app = QApplication([])
     
     app.aboutToQuit.connect(exitHandler)
-    visualExperiment = WVisualExperiment()
+    visualExperiment = WVisualExperimentGateInGUI()
     visualExperiment.start()
-    visualExperiment.show()
+    
         
     sys.exit( app.exec() )
         
