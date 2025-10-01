@@ -1,5 +1,5 @@
 '''
-Created on 6 fÃ©vr. 2025
+Created on 6 févr. 2025
 
 @author: Fab
 '''
@@ -15,20 +15,21 @@ class ExperimentManager(object):
         
         self.experimentList = []
         
-    def addReport(self , report ):
+    def addReport(self , report, index = None ):
         print( "addding report " , report )
         
         for experiment in self.experimentList:
             if experiment.name == report.experimentName:
-                experiment.addReport( report )
+                experiment.addReport( report , index )
                 return
         
         # not found, creates it.
         
         experiment = Experiment( report.experimentName )
-        experiment.addReport( report )
+        experiment.addReport( report, index )
         self.experimentList.append( experiment )
-        
+    
+    '''
     def insertReport(self, report, index):
         
         for experiment in self.experimentList:
@@ -42,12 +43,13 @@ class ExperimentManager(object):
         experiment.insertReport( report, index )
         self.experimentList.append( experiment )
     
-    def moveReport( self, source, target, experimentName ):
+    def moveReportIndex( self, sourceIndex, targetIndex, experimentName ):
         
         for experiment in self.experimentList:
             if experiment.name == experimentName:
-                experiment.moveReport( source, target )
+                experiment.moveReportIndex( sourceIndex, targetIndex )
                 return
+    '''
     
     def getExperimentList(self):
         l = []
@@ -97,18 +99,18 @@ class Experiment(object):
         self.startTime = datetime.now()
         self.endTime = datetime.now()
         
-    def addReport(self , report ):
-        self.reportList.append( report )
+    def addReport(self , report, index = None ):
+        
+        if index != None:
+            self.reportList.insert( index, report )
+        else:
+            self.reportList.append( report )
+            
         self.endTime = datetime.now()
 
     def insertReport(self , report, index ):
         self.reportList.insert( index, report )
         self.endTime = datetime.now()
-        
-    def moveReport( self, source, target ):
-        r = self.reportList[source]
-        self.reportList.remove( r )
-        self.insertReport( r , target )
     
     def getGenerationTimeInS(self):
         delta = (self.endTime - self.startTime).total_seconds()

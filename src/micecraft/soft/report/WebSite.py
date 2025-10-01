@@ -1,7 +1,7 @@
 '''
-Created on 5 fev. 2025
+Created on 5 févr. 2025
 
-@author: Fabrice de Chaumont
+@author: Fab
 '''
 
 import os
@@ -23,7 +23,7 @@ class WebSite(object):
     manage static website generation
     '''
 
-    def __init__(self, templateFolder=None, outFolder=None, defaultWebSiteFolder=None, cacheFolder=None, passFile = None ):
+    def __init__(self, templateFolder, outFolder, defaultWebSiteFolder=None, cacheFolder=None, passFile = None ):
 
         self.name =""
         self.reportList = []
@@ -33,33 +33,19 @@ class WebSite(object):
         self.outFolder = outFolder
         self.defaultWebSiteFolder=defaultWebSiteFolder
         self.passFile = passFile
+    
+    def moveReportToPosition(self , report, targetIndex ):
+        # find report
+        self.experimentManager.getExperimentWithReport( report )
         
-        if os.path.isdir( self.outFolder ) == False:
-            print(f"Out folder {self.outFolder} does not exists.")
-            a = input("Create folder {self.outFolder} ? [y/n]")
-            if a =="y":
-                os.makedirs( self.outFolder )
-                print(f"Out folder {self.outFolder} created.")
-            else:
-                return
-            
-        # setup default folder for ressources if not specified.
-        currentFolder = os.path.dirname(os.path.abspath(__file__))
-        
-        if self.defaultWebSiteFolder == None:
-            self.defaultWebSiteFolder = currentFolder+"/defaultwebsite/"
-
-        if self.templateFolder == None:
-            currentFolder = os.path.dirname(os.path.abspath(__file__))
-            self.templateFolder = currentFolder+"/template/"
-                
         
     def moveReport(self , source, target, experimentName ):
         self.experimentManager.moveReport( source, target, experimentName )
         
-    def addReport(self , report ):
+    def addReport(self , report , index=None ):
         
-        self.experimentManager.addReport( report )
+        self.experimentManager.addReport( report, index )
+        
 
     def addReports(self , reports ):
         
@@ -145,7 +131,7 @@ class WebSite(object):
         inRow = False
         for report in reportList:                
             
-            number=reportList.index( report )            
+            number=reportList.index( report )
             
             if report.template.lower() != "minicard.html": # fixme: if the anchor is present, it generates a line break
                 content+= f"<a name='report{number}'></a>"
@@ -210,7 +196,6 @@ class WebSite(object):
             
         # copy initial files
         print("Copy default website ...")
-        
         if self.defaultWebSiteFolder != None:        
             files = []
             files.extend( glob( f"{self.defaultWebSiteFolder}/*.css" ) )
@@ -222,11 +207,13 @@ class WebSite(object):
                 shutil.copy( f"{file}" , f"{self.outFolder}/{os.path.basename(file)}")
         
         
-    def generateWebSite(self, showMenuItem=False ):
+    def generateWebSite(self ):
         print("Generating website...")
         
         templateFolder = self.templateFolder
         outFolder = self.outFolder
+        
+        
 
         # Create the jinja2 environment.        
         self.env = Environment(loader=FileSystemLoader( templateFolder ))
@@ -237,6 +224,7 @@ class WebSite(object):
         
 
         # Main index generation
+                       
         
         content = ""            
         '''
@@ -251,7 +239,7 @@ class WebSite(object):
         experimentMainTimeGenerationInS = 0
         
         if experimentMain != None:        
-            content += self.renderReportList( experimentMain.reportList , templateFolder, outFolder, "Main", showMenuItem )
+            content += self.renderReportList( experimentMain.reportList , templateFolder, outFolder, "Main" )
             experimentMainTimeGenerationInS = experimentMain.getGenerationTimeInS()
             
         mainHTML = env.get_template( "index.html").render( 
@@ -276,7 +264,7 @@ class WebSite(object):
                        
             content = ""
                  
-            content += self.renderReportList( experiment.reportList , templateFolder, outFolder, experiment.name, showMenuItem  )
+            content += self.renderReportList( experiment.reportList , templateFolder, outFolder, experiment.name  )
                             
             # put content in main            
             mainHTML = env.get_template( "index.html").render(                 
