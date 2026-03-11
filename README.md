@@ -3,7 +3,7 @@
 MiceCraft is designed to create, monitor and control smart habitats for animals.
 
 > [!TIP]
-> Public release coming fall 2025.
+> Public release coming in 2026.
 
 > [!CAUTION]
 > This MiceCraft repository is the public version and will get progressive updates from the private closed-beta repository
