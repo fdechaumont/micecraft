@@ -4,31 +4,25 @@ Created on 14 mars 2023
 @author: Fab
 '''
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import  QPainter, QPaintEvent, QColor, QFont
-from PyQt5.Qt import QRect, QImage, QRegion, QLabel, QPushButton
+from PyQt6.QtGui import QPaintEvent, QPainter, QFont, QPen, QColor
+from PyQt6.QtCore import QRect, Qt
+from PyQt6 import *
+from PyQt6.QtWidgets import QWidget, QMenu
 
-class WWMouse(QtWidgets.QWidget):
+class WMouse(QtWidgets.QWidget):
 
     
     def __init__(self, x,y, *args, **kwargs ):
         super().__init__( *args, **kwargs )
-        self.x = x*200+100
-        self.y = y*200+100
+        self.x = x
+        self.y = y
         
-        self.setGeometry( int(self.x), int(self.y), 100, 100)
+        self.setGeometry( int(self.x), int(self.y), 125, 50 )
         self.name ="block"
-        self.angle = 0
-        self.img = QImage()
-        self.img.load("mouse.jpg")
-        
-        mask = QRegion( 0,0,100,100, QRegion.Ellipse)
-        self.setMask( mask )
-        
-        
-        
-        #self.keyPressed.connect(self.on_key)
+        self.rfid = None
+        self.description = ""
+        self.number = 0
+        self.setBackgroundColor( 100, 100, 100 )
     
     def setName(self , name ):
         self.name = name
@@ -37,37 +31,35 @@ class WWMouse(QtWidgets.QWidget):
     def setAngle(self , angle ):
         self.angle = angle
         self.update()
+        
+    def setBackgroundColor(self , r , g , b  ):    
+        self.backGroundColor = QtGui.QColor(r,g,b)
 
-
-    
-    
     def paintEvent(self, event: QPaintEvent):
         
         painter = QPainter()
         painter.begin(self)
             
-        painter.translate(self.width()/2,self.height()/2);
-        painter.rotate(self.angle);
-        painter.translate(-self.width()/2,-self.height()/2);
-        
-        painter.drawImage(self.rect(), self.img)
-        
-        painter.setPen(QtGui.QPen(QtGui.QColor(100,100,100), 4))
-        painter.drawEllipse(0, 0, self.width(), self.height())
-        
-        '''
-        painter.fillRect(0, 0, 200, 200, QColor(220, 220, 220))
+        painter.fillRect(0, 0, 125, 50, self.backGroundColor )
 
-        painter.setPen(QtGui.QPen(QtGui.QColor(100,100,100), 4)) 
-        painter.drawRect(0,0,200,200)
+        painter.setPen( QtGui.QPen(QtGui.QColor(100,100,100), 4) ) 
+        painter.drawRect(0,0,125,50)
         
-        #painter.drawEllipse(0, 0, 40, 40)
-        painter.setPen(QtGui.QPen(QtGui.QColor(200,200,200), 4))
-        font = QFont('Times', 30)
+        painter.setPen(QtGui.QPen(QtGui.QColor(30,30,30), 4))
+        font = QFont('Times', 10)
         font.setBold(True)
         painter.setFont( font )
-        painter.drawText( QRect( 0,0,200,50) , Qt.AlignCenter, self.name )
-        '''
+        
+        txt = self.rfid
+        if txt==None:
+            txt="No RFID"
+        if self.description !="":
+            txt+="\n"+self.description
+        painter.drawText( QRect( 0,0,125,50) , Qt.AlignCenter, txt )
+
+        painter.drawText( QRect( 5,5,20,10) , Qt.AlignCenter, str( self.number ) )
+
+        #painter.drawText( QRect( 0,20,125,50) , Qt.AlignCenter, self.description )
 
         painter.end()
     
@@ -79,7 +71,7 @@ class WWMouse(QtWidgets.QWidget):
             self.__mousePressPos = event.globalPos()
             self.__mouseMovePos = event.globalPos()
 
-        super(WWMouse, self).mousePressEvent(event)
+        super(WMouse, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         if event.buttons() == QtCore.Qt.LeftButton:
@@ -92,7 +84,7 @@ class WWMouse(QtWidgets.QWidget):
 
             self.__mouseMovePos = globalPos
 
-        super(WWMouse, self).mouseMoveEvent(event)
+        super(WMouse, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if self.__mousePressPos is not None:
@@ -101,4 +93,4 @@ class WWMouse(QtWidgets.QWidget):
                 event.ignore()
                 return
 
-        super(WWMouse, self).mouseReleaseEvent(event)
+        super(WMouse, self).mouseReleaseEvent(event)

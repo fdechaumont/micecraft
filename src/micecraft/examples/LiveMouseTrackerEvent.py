@@ -3,7 +3,7 @@ Created on 18 sept. 2025
 
 @author: Fab
 '''
-from micecraft.soft.LMTEvent.LMTEventSender import LMTEventSender
+from micecraft.soft.lmt_event.LMTEventSender import LMTEventSender
 
 if __name__ == '__main__':
     

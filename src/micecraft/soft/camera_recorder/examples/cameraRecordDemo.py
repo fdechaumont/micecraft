@@ -4,9 +4,10 @@ Created on 16 sept. 2025
 @author: Fabrice de Chaumont
 
 '''
-from micecraft.soft.CameraRecorder.CameraRecorder import CameraRecorder, CRText
+
 from random import randint
 import datetime
+from micecraft.soft.camera_recorder.CameraRecorder import CameraRecorder, CRText
 
 if __name__ == '__main__':
     

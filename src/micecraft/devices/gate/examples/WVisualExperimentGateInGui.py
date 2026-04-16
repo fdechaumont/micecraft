@@ -11,14 +11,16 @@ import sys
 
 from micecraft.devices.lever.Lever import Lever
 from micecraft.soft.gui.Wall import Wall, WallSide, WallType
-from micecraft.soft.gui.WLever import WLever
+
 from micecraft.soft.gui.WBlock import WBlock
 from PyQt6.QtWidgets import QWidget, QApplication
 from PyQt6 import QtCore
 from PyQt6.QtGui import QPainter, QPaintEvent
 
+from PyQt6.QtCore import Qt
+from micecraft.devices.gate.gui.WGate import WGate
 
-class WVisualExperiment(QWidget):
+class WVisualExperimentGateInGUI(QWidget):
     
     refresher = QtCore.pyqtSignal()
     
@@ -32,7 +34,7 @@ class WVisualExperiment(QWidget):
         
         print("Exiting...")
         self.shuttingDown = True
-        self.lever.shutdown()
+        
         print("Done.")
         
     
@@ -55,25 +57,34 @@ class WVisualExperiment(QWidget):
         # Definition of the visual elements
         
         block = WBlock( 0,0 , self )
-        block.setName("Box")
+        block.setName("Box A")
+        block.addWall( Wall ( WallSide.RIGHT, wallType = WallType.DOOR ) )
+        block.addWall( Wall ( WallSide.BOTTOM  ) )
+        block.addWall( Wall ( WallSide.TOP ) )
+        block.addWall( Wall ( WallSide.LEFT ) )
+        
+        block = WBlock( 2,0 , self )
+        block.setName("Box B")
         block.addWall( Wall ( WallSide.RIGHT ) )
-        block.addWall( Wall ( WallSide.BOTTOM, wallType = WallType.GRID ) )
+        block.addWall( Wall ( WallSide.BOTTOM ) )
         block.addWall( Wall ( WallSide.TOP ) )
         block.addWall( Wall ( WallSide.LEFT, wallType = WallType.DOOR ) )
+
+        gate = WGate( 1 , 0 , self )
         
-        self.lever = Lever( "COM23" ) # Create a lever
-        visualLever = WLever( 0.25,-0.3, self ) # Create the visual lever widget
-        visualLever.setName("Lever")
-        visualLever.bindToLever( self.lever ) # Bind visual lever to device so that it can read its state.
-        
-        self.lever.addDeviceListener( self.listener )
-        
-        self.resize(400,400)
-        self.setWindowTitle( "MiceCraft - Lever display test" )
+        self.resize(800,400)
+        self.setWindowTitle( "MiceCraft - Gate display test" )
                 
         self.thread = threading.Thread( target=self.monitorGUI )
         self.refresher.connect(self.on_refresh_data)
         self.thread.start()
+
+        # the following show trick is needed if an input (the console) as taken the focus before, else the window will not show        
+        self.setWindowFlag( Qt.WindowType.WindowStaysOnTopHint, True);
+        self.show( )
+        self.setWindowFlag( Qt.WindowType.WindowStaysOnTopHint, False);
+        self.show( )
+
     
     def paintEvent(self, event: QPaintEvent):
                 
@@ -100,9 +111,9 @@ if __name__ == "__main__":
     app = QApplication([])
     
     app.aboutToQuit.connect(exitHandler)
-    visualExperiment = WVisualExperiment()
+    visualExperiment = WVisualExperimentGateInGUI()
     visualExperiment.start()
-    visualExperiment.show()
+    
         
     sys.exit( app.exec() )
         

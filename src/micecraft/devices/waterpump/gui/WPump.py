@@ -3,10 +3,10 @@ Created on 14 mars 2023
 
 @author: Fab
 '''
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import  QPainter, QPaintEvent, QColor, QFont
-from PyQt5.Qt import QRect, QImage, QRegion, QLabel, QPushButton, QMenu
+from PyQt6.QtGui import QPaintEvent, QPainter, QFont, QPen, QColor
+from PyQt6.QtCore import QRect, Qt
+from PyQt6 import *
+from PyQt6.QtWidgets import QWidget, QMenu
 
 from time import sleep
 from micecraft.soft.gui.VisualDeviceAlarmStatus import VisualDeviceAlarmStatus
@@ -14,7 +14,7 @@ from micecraft.soft.gui.VisualDeviceAlarmStatus import VisualDeviceAlarmStatus
 
 
 
-class WWWPump(QtWidgets.QWidget):
+class WPump(QtWidgets.QWidget):
 
     def __init__(self, x , y , *args, **kwargs):
         super().__init__( *args, **kwargs)
@@ -210,7 +210,7 @@ class WWWPump(QtWidgets.QWidget):
             self.__mousePressPos = event.globalPos()
             self.__mouseMovePos = event.globalPos()
 
-        super(WWWPump, self).mousePressEvent(event)
+        super(WPump, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         if event.buttons() == QtCore.Qt.LeftButton:
@@ -223,7 +223,7 @@ class WWWPump(QtWidgets.QWidget):
 
             self.__mouseMovePos = globalPos
 
-        super(WWWPump, self).mouseMoveEvent(event)
+        super(WPump, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if self.__mousePressPos is not None:
@@ -232,6 +232,6 @@ class WWWPump(QtWidgets.QWidget):
                 event.ignore()
                 return
 
-        super(WWWPump, self).mouseReleaseEvent(event)
+        super(WPump, self).mouseReleaseEvent(event)
     
 

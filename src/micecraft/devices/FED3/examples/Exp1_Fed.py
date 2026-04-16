@@ -3,8 +3,8 @@ Created on 18 dec. 2023
 
 @author: Fab
 '''
+from micecraft.devices.FED3.Fed3 import Fed3
 
-from micecraft.devices.fed3.Fed3 import Fed3
 
 if __name__ == '__main__':
     

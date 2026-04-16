@@ -6,8 +6,10 @@ Created on 11 avr. 2022
 from PyQt6 import QtCore
 
 from PyQt6.QtWidgets import QWidget, QPushButton, QLabel, QApplication
-from micecraft.soft.gui.WFed import WFed
-from micecraft.soft.gui.WGate import WGate
+
+from micecraft.devices.gate.gui.WGate import WGate
+from micecraft.devices.FED3.gui.WFed import WFed
+
 
 '''
 from PyQt5 import QtCore, QtGui, QtWidgets

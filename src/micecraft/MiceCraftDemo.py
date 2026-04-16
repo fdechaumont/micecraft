@@ -7,15 +7,9 @@ import sys
 import traceback
 from PyQt6 import QtCore
 from PyQt6.QtWidgets import QApplication
-from micecraft.examples.GateInGui import WVisualExperimentGateInGUI
+
 from PyQt6.QtWidgets import QApplication, QWidget
-
-
-
-
-
-
-
+from micecraft.devices.gate.examples.WVisualExperimentGateInGui import WVisualExperimentGateInGUI
 
 
 def excepthook(type_, value, traceback_):

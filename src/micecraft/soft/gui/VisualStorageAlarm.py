@@ -4,15 +4,15 @@ Created on 6 janv. 2025
 @author: Fab
 '''
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import  QPainter, QPaintEvent, QColor, QFont
-from PyQt5.Qt import QRect, QImage, QRegion, QLabel, QPushButton, QMenu
+from PyQt6 import QtCore
 
+from PyQt6.QtWidgets import QWidget, QPushButton, QLabel, QApplication, QMenuBar
+from PyQt6.QtGui import QPaintEvent, QFont, QPen, QColor, QPainter
+from PyQt6.QtCore import QRect, Qt
+from PyQt6.QtGui import QPaintEvent, QPainter, QFont, QPen, QColor
      
 import shutil
 from micecraft.soft.alarm.Alarm import Alarm
-
 
 
 class VisualStorageAlarm(object):
@@ -28,12 +28,13 @@ class VisualStorageAlarm(object):
         
         s = f"Total: {total} GB\nUsed: {used} GB\nFree: {free} GB\nMin: {self.minGB} GB"
         
-        c = QtGui.QColor(0,128,0)
+        
+        c = QColor(0,128,0)
         if free < self.minGB:
-            c = QtGui.QColor(255,0,0)
+            c = QColor(255,0,0)
                         
         painter.setBrush( c )
-        painter.setPen(QtGui.QPen( c, 1))
+        painter.setPen( QPen( c, 1))
         font = QFont('Times', 8)
         painter.setFont( font )
                     
