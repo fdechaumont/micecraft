@@ -23,6 +23,7 @@ class Alarm(object):
     mails = []
     # use Alarm.experimentName='your experiment name' to set it once for all alarms. use capital for Alarm for static access
     experimentName ="no experiment name" 
+    noMailSetMessageDisplayed = False
     
     def __init__( self , alarmName , numberOfSecondsBetweenMail = 60*10 ):
         self.alarmName = alarmName
@@ -55,6 +56,14 @@ class Alarm(object):
         return False
     
     def sendAlarmMail(self, alarmState, content, fileList = [] ):
+        
+        if len( self.mails ) == 0:
+            
+            if not self.noMailSetMessageDisplayed:
+                logging.info(f"Alarm: no email set. This message appears only once.")
+                self.noMailSetMessageDisplayed = True
+            
+            return
         
         # check if a mail of alert has already been sent (to prevent spamming)
         try:
