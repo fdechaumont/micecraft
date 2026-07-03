@@ -38,12 +38,12 @@ class VisualDeviceAlarmStatus(object):
                     painter.drawEllipse( ellipseRect )
                     font = QFont('Times', 8)                    
                     painter.setFont( font )
-                    painter.drawText( textRect, Qt.AlignCenter, alarm )
+                    painter.drawText( textRect, Qt.AlignmentFlag.AlignCenter, alarm )
             
             if alarm == False and textInNormalState != "":
                 font = QFont('Times', 8)                    
                 painter.setFont( font )
-                painter.drawText( textRect, Qt.AlignCenter, textInNormalState )
+                painter.drawText( textRect, Qt.AlignmentFlag.AlignCenter, textInNormalState )
                 
         
     def __init__(self ):
