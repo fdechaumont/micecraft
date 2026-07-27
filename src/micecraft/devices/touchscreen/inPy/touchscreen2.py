@@ -693,13 +693,21 @@ class ScreenDisplayManager:
         display_center: tuple[float, float] = (0.5, 0.5),
         display_rotation: float = 0,
         display_invert_axis: tuple[bool, bool] = (False, False),
-        detector_size: tuple[float, float] = (1, 1),
+        detector_size: tuple[float, float] = (1.0, 1.0),
         detector_center: tuple[float, float] = (0.5, 0.5),
         detector_rotation: float = 0,
         detector_invert_axis: tuple[bool, bool] = (False, False),
     ) -> None:
         """Set the display mode by specifying the active area size, center and
-        rotation."""
+        rotation.
+
+        The working detector size (relative to screen size) is:
+        - 1.40 x 2.00 for mouse mode
+        - 0.95 x 1.40 for rat mode
+
+        Rotations are clockwise in degrees. The touch detector cable goes out
+        at the bottom-right corner when in normal orientation (0 degrees
+        rotation)."""
         self.display_area.size = display_size
         self.display_area.center = display_center
         self.display_area.rotation = display_rotation % 360
@@ -716,49 +724,49 @@ class ScreenDisplayManager:
 
     def set_mouse_mode(self) -> None:
         """Set the display to mouse mode."""
-        dis_size = (0.75, 0.65)
-        dis_center = (
-            0.5,
-            1 - dis_size[1] / 2,
-        )
 
-        det_size = (0.95, 1.3)
-        det_center = (
-            0.5,
-            1 - dis_size[1] / 2 - 0.15,
-        )
-        det_rotation = -90
+        # Screen display
+        # ----------------
+        sd_size = (0.80, 0.65)  # relative to screen size
+        sd_center = (0.5, 1 - sd_size[1] / 2)
 
+        # Touch detector
+        # ----------------
+        td_size = (1.4, 2.0)  # relative to screen size
+        td_center = (0.5, 0.65)
+        td_rotation = -90  # cable goes out at top-right corner
+
+        # Mode setting
+        # ----------------
         self.set_mode(
-            display_size=dis_size,
-            display_center=dis_center,
-            detector_size=det_size,
-            detector_center=det_center,
-            detector_rotation=det_rotation,
-            detector_invert_axis=(True, True),
+            display_size=sd_size,
+            display_center=sd_center,
+            detector_size=td_size,
+            detector_center=td_center,
+            detector_rotation=td_rotation,
         )
 
     def set_rat_mode(self) -> None:
         """Set the display to rat mode."""
-        dis_size = (0.96, 0.82)
-        dis_center = (
-            dis_size[0] / 2,
-            1 - dis_size[1] / 2,
-        )
+        # Screen display
+        # ----------------
+        sd_size = (0.95, 0.82)  # relative to screen size
+        sd_center = (0.5, 1 - sd_size[1] / 2)
 
-        det_size = (0.95, 1.3)
-        det_center = (
-            det_size[0] / 2,
-            1 - det_size[1] / 2,
-        )
-        det_rotation = 180
+        # Touch detector
+        # ----------------
+        td_size = (0.95, 1.40)  # relative to screen size
+        td_center = (0.5, 1 - 1.40 / 2 + 0.05)  # bottom aligned
+        td_rotation = 180  # cable goes out at top-left corner
 
+        # Mode setting
+        # ----------------
         self.set_mode(
-            display_size=dis_size,
-            display_center=dis_center,
-            detector_size=det_size,
-            detector_center=det_center,
-            detector_rotation=det_rotation,
+            display_size=sd_size,
+            display_center=sd_center,
+            detector_size=td_size,
+            detector_center=td_center,
+            detector_rotation=td_rotation,
         )
 
     # Rendering

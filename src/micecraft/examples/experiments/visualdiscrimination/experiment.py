@@ -685,7 +685,7 @@ class Room:
             self.ts.addDeviceListener(self.touchscreen_listener)
         # self.ts.setTransparency(0.5)
         self.ts.setMouseMode()
-        self.ts.setImageSize(0.5, "ratio")
+        self.ts.setImageSize(0.45, "ratio")
         self.ts.clear()
         self.ts.showCalibration(False)
         if display_log:
