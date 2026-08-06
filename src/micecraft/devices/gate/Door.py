@@ -66,6 +66,8 @@ class Door(object):
         '''
         self.keepTorqueActiveWhileDoorAreClosed = False 
         
+        
+        
     '''
     def setJammed(self ):
         print("Door JAMMED " )        
