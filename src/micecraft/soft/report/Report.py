@@ -27,17 +27,14 @@ class Report(object):
         self.experimentName = experimentName
         self.style = style # can be: primary, success, danger, warning
         self._errorLevel = 0 # override the style if different from 0. 1: warning, 2:danger
+
         if options == None:
-            options = {}
-        
+            options = {}        
         self.options = options
         
         if downloadableContent == None:
             downloadableContent = {}
-             
         self.downloadableContent = downloadableContent # to add dataframe or files that will be available for download. Key is the name of the link on the webpage. 
-        print( f"init {title} content {self.downloadableContent=}" )
-        input("press enter")
     
     def __str__(self, *args, **kwargs):
         return f"Report {self.title} - {self.experimentName}"
@@ -46,9 +43,6 @@ class Report(object):
         '''
         content supports dataframe
         '''
-        print( f"adding {name} content to report {self.title}")
-        print( f"current data: {self.downloadableContent}")
-        input("press enter")
         self.downloadableContent[name] = content 
         
     
