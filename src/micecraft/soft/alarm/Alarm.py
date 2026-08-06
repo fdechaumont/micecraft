@@ -32,6 +32,7 @@ class Alarm(object):
         self.state = AlarmState.ALARM_OFF
         self.lastMailDateTime = datetime.now()-timedelta(days=365)
         self.timeBetweenMailInS = numberOfSecondsBetweenMail
+        logging.info("alarm created for " + str ( self.alarmName ) )
         
     def setTimeBetweenMailInS(self, nbSeconds ):
         self.timeBetweenMailInS = nbSeconds        
@@ -55,7 +56,10 @@ class Alarm(object):
         
         return False
     
-    def sendAlarmMail(self, alarmState, content, fileList = [] ):
+    def sendAlarmMail(self, alarmState, content, fileList = None ):
+        
+        if fileList == None:
+            fileList= []
         
         if len( self.mails ) == 0:
             

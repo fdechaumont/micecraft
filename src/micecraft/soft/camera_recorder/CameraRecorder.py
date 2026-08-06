@@ -259,7 +259,10 @@ class CameraRecorder(object):
     def stopStream(self):
         self.saveStreaming = False
 
-    def save(self , output=None, minDateTime=None, maxDateTime=None, textList=[]):
+    def save(self , output=None, minDateTime=None, maxDateTime=None, textList=None):
+        
+        if textList == None:
+            textList = []
         
         logging.info(f"[Camera Recorder] save output:{output} minDateTime:{minDateTime} maxDateTime:{maxDateTime}")
         print(f"output: {output}")
@@ -310,13 +313,17 @@ class CameraRecorder(object):
                         
         out.release()
     
-    def delayedSave(self , delayS, output=None, minDateTime=None, maxDateTime=None, textList=[]):
+    def delayedSave(self , delayS, output=None, minDateTime=None, maxDateTime=None, textList=None):
         # this will delay the save operation so that you can easily get a few seconds after the event to see what is happening after it.
+        if textList == None:
+            textList = []
         logging.info(f"[Camera Recorder] delayed save delayS:{delayS} output:{output} minDateTime:{minDateTime} maxDateTime:{maxDateTime}")
         t = threading.Timer(delayS, self.save, [output, minDateTime, maxDateTime, textList])
         t.start()
     
-    def saveLastSeconds(self , nbSeconds, output=None, textList=[]):
+    def saveLastSeconds(self , nbSeconds, output=None, textList=None):
+        if textList == None:
+            textList = []
         self.save(output, datetime.datetime.now() - datetime.timedelta(seconds=nbSeconds) , textList=textList)
         
     def saveAll(self , output="all.mp4"): 

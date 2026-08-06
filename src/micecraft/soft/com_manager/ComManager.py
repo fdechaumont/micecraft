@@ -33,7 +33,7 @@ class ComManager(object):
     '''
 
 
-    def __init__(self, comPort : str, deviceListener, alarmName="", baudrate = 115200 , listener_kwargs={}):
+    def __init__(self, comPort : str, deviceListener, alarmName="", baudrate = 115200 ):
         
         self.comPort = comPort
         self.baudrate = baudrate
@@ -43,7 +43,7 @@ class ComManager(object):
         
         atexit.register(self.stop)
         self.deviceListenerList = []
-        self.addDeviceListener( deviceListener, listener_kwargs )
+        self.addDeviceListener( deviceListener )
         self.enabled = True
         
         self.lastActivityDateTime = datetime.now() - timedelta(days=365)
@@ -261,13 +261,13 @@ class ComManager(object):
         
     def fireEvent(self, deviceEvent ):
         
-        for listener, kwargs in self.deviceListenerList:
+        for listener in self.deviceListenerList:
             
-            listener( deviceEvent, **kwargs )
+            listener( deviceEvent )
             
     
-    def addDeviceListener(self , listener, listener_kwargs ):
-        self.deviceListenerList.append( (listener,listener_kwargs) )
+    def addDeviceListener(self , listener ):
+        self.deviceListenerList.append( listener )
         
     def removeDeviceListener(self , listener ):
         self.deviceListenerList.remove( listener )
