@@ -1,12 +1,16 @@
 import os
 import sys
-from enum import Enum
+import logging
 from pathlib import Path
-from typing import List, Tuple, Any
+from typing import Any, Callable, Literal
 from datetime import datetime, timedelta
 
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.colors import sequential, qualitative
 
 from PyQt6.QtWidgets import (
     QApplication,
@@ -15,17 +19,24 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
+    QSpinBox,
+    QFormLayout,
+    QDialogButtonBox,
     QVBoxLayout,
 )
 
 from micecraft.soft.report.LogFileMerger import LogFileMerger
+from micecraft.examples.report.report_manager import HTMLReportManager
+
+DISCRETE_CLRS = qualitative.Bold[::-1]
+CONTINUOUS_CLRS = sequential.Plotly3
 
 
 class LogLineParser:
     """Class for parsing one line of log and extracting relevant data."""
 
     @staticmethod
-    def separate_room_device(device_name: str) -> Tuple[str, str]:
+    def separate_room_device(device_name: str) -> tuple[str, str]:
         """Separate the room name and the device name from a string of format
         'room-device'. Also remove any brackets ("[", "]") around the input
         device name.
@@ -45,7 +56,7 @@ class LogLineParser:
         self.log_split = self.get_log().split(" ")
         self.tag, self.warning = self.get_tag()
 
-    def get_tag(self) -> Tuple[str, bool]:
+    def get_tag(self) -> tuple[str, bool]:
         """Extract the tags of the log line."""
         tag = self.log_split[0]
         warning = False
@@ -86,14 +97,29 @@ class LogLineParser:
             room_name, _ = self.separate_room_device(room_device)
         return room_name
 
-    def get_sensors_data(self) -> dict[str, float]:
+    def get_sensors_data(self) -> dict[str, datetime | float]:
         """Extract relevant data from one line of log."""
-        data: dict[str, float] = {}
-        list_str = self.log_line.strip("}{").split(", ")
+        data: dict[str, datetime | float] = {}
+        list_str = self.get_log().strip("}{").split(", ")
         values = []
+        # mean Pressure, std Pressure, max Pressure, min Pressure
+        # mean Temperature, std Temperature, max Temperature, min Temperature
+        # mean Humidity, std Humidity, max Humidity, min Humidity
+        # mean r, std r, max r, min r
+        # mean g, std g, max g, min g
+        # mean b, std b, max b, min b
+        # mean a, std a, max a, min a
+        # mean Sound level, std Sound level, max Sound level, min Sound level
+        # mean Tilting x, std Tilting x, max Tilting x, min Tilting
+        # mean Tilting y, std Tilting y, max Tilting y, min Tilting y
+        # mean Shock, std Shock, max Shock, min Shock
+        # mean Raw accel x, std Raw accel x, max Raw accel x, min Raw accel x
+        # mean Raw accel y, std Raw accel y, max Raw accel y, min Raw accel y
+        # mean Raw accel z, std Raw accel z, max Raw accel z, min Raw accel z
         for s in list_str:
             [_, value] = s.split(": ")
             values.append(float(value))
+        data["time"] = self.get_time()
         data["pressure"] = values[0]
         data["pressure_std"] = values[1]
         data["temperature"] = values[4]
@@ -256,7 +282,7 @@ class LogAnalyzer(object):
             time_zero = parser.get_time()
         return time_zero
 
-    def to_csv(self) -> Tuple[Path, Path, Path]:
+    def to_csv(self) -> tuple[Path, Path, Path]:
         """Export the extracted data to csv files and return their paths as
         *(sensors, sessions, trials)*."""
         folder_path = self.log_file.parent
@@ -334,7 +360,7 @@ class LogAnalyzer(object):
 
                 # Sensors
                 # ----------------
-                if parser.get_log() == "{'mean Pressure':":
+                if parser.get_log().startswith("{'mean Pressure':"):
                     self.sensors.append(parser.get_sensors_data())
                     continue
 
@@ -343,10 +369,19 @@ class LogAnalyzer(object):
                 if "[animal_weight]" in parser.get_log():
                     # room: r-d rfid: 000000000000 weight_(g): 23.00
                     room = parser.get_room()
-                    if session[room].rfid is None:
-                        session[room].weight_in = float(parser.log_split[-1])
+                    weight = parser.get_info("weight_(g)")
+                    if weight is None:
+                        tqdm.write(
+                            "Animal weight reading error in log:\n"
+                            f"{parser.log_line}"
+                        )
                     else:
-                        session[room].weight_out = float(parser.log_split[-1])
+                        weight = float(weight)
+
+                    if session[room].rfid is None:
+                        session[room].weight_in = weight
+                    else:
+                        session[room].weight_out = weight
                     continue
 
                 # RFID reading
@@ -379,6 +414,14 @@ class LogAnalyzer(object):
                     for room in session.keys():
                         if session[room].rfid is not None:
                             tqdm.write("Application restarted during session.")
+
+                            if (
+                                trial[room].current_state
+                                in trial[room].state_start
+                            ):
+                                trial[room].state_end[
+                                    trial[room].current_state
+                                ] = parser.get_time()
                             session[room].end_time = parser.get_time()
                             self.sessions.append(session[room])
                             session[room] = SessionData(room)
@@ -480,10 +523,17 @@ class LogAnalyzer(object):
                 # Touches
                 # ----------------
                 if parser.tag == "[useful_touch]":
-                    # room: r rfid: 000000000000 image_name: left_image_FLOWER image_id: 1 image_x: 560.0 image_y: 750.0 touch_x: 100 touch_y: 300
+                    # room: r rfid: 000000000000 image_name: left_image_FLOWER image_id: 1 image_x: 560.0 image_y: 750.0 touch_x_px: 100 touch_y_px: 300 touch_x_ratio: 0.250 touch_y_ratio: 0.500
                     room = parser.get_room()
-                    x = parser.get_info("touch_x")
-                    y = parser.get_info("touch_y")
+                    x = parser.get_info("touch_x_ratio")
+                    y = parser.get_info("touch_y_ratio")
+                    if x is None and y is None:
+                        x = parser.get_info("touch_x_px")
+                        y = parser.get_info("touch_y_px")
+                    if x is None and y is None:
+                        x = parser.get_info("touch_x")
+                        y = parser.get_info("touch_y")
+
                     if x is not None:
                         trial[room].x_touch = float(x)
                     if y is not None:
@@ -491,9 +541,21 @@ class LogAnalyzer(object):
                     continue
 
                 if parser.tag == "[useless_touch]":
-                    # room: r rfid: 000000000000 touch_x: 100 touch_y: 300
+                    # room: r rfid: 000000000000 touch_x_px: 100 touch_y_px: 300 touch_x_ratio: 0.250 touch_y_ratio: 0.500
                     room = parser.get_room()
-                    trial[room].state_touches[trial[room].current_state] += 1
+                    if (
+                        trial[room].state_touches.get(
+                            trial[room].current_state
+                        )
+                        is None
+                    ):
+                        trial[room].state_touches[
+                            trial[room].current_state
+                        ] = 1
+                    else:
+                        trial[room].state_touches[
+                            trial[room].current_state
+                        ] += 1
                     continue
 
                 # Trial result
@@ -516,23 +578,31 @@ class LogAnalyzer(object):
                         trial[room].touch_left = False
                     continue
 
-                # Reward picking
+                # Reward searches
                 # ----------------
                 if parser.tag == "[reward_search]":
-                    # room: r rfid: 000000000000 find: reward
+                    # room: r rfid: 000000000000
                     room = parser.get_room()
-
-                    info = parser.get_info("find")
-                    if info == "reward":
-                        trial[room].reward_collected = True
-                    if info == "nothing":
-                        trial[room].reward_collected = False
 
                     state = trial[room].current_state
                     if state not in trial[room].state_searches:
                         trial[room].state_searches[state] = 1
                     else:
                         trial[room].state_searches[state] += 1
+
+                # Reward picking
+                # ----------------
+                if parser.tag == "[reward_delivery]":
+                    # room: r reward_size: 1
+                    room = parser.get_room()
+                    trial[room].reward_collected = False
+
+                # Reward picking
+                # ----------------
+                if parser.tag == "[reward_picked]":
+                    # room: r rfid: 000000000000
+                    room = parser.get_room()
+                    trial[room].reward_collected = True
 
 
 def select_files(file_type: str) -> list[Path]:
@@ -578,12 +648,179 @@ def merge_logs(log_files: list[Path]) -> Path:
     return Path(merger.mergedFiles[0])
 
 
+def get_cumulative(
+    df: pd.DataFrame,
+    on_col: str,
+    fill_na: bool | int | float | None = None,
+    map_arg: dict | Callable | None = None,
+    groupby_col: str | None = "rfid",
+) -> pd.Series:
+    """Compute cumulative sum of a column (per RFID by default),
+    optionally mapping values and filling NAs.
+
+    Returns
+    -------
+    pandas.Series
+        A series containing the cumulative sum (per RFID).
+    """
+    series = df[on_col]
+    if map_arg is not None:
+        series = series.map(map_arg)
+    if fill_na is not None:
+        series = series.fillna(fill_na).astype(type(fill_na))
+    if groupby_col is not None:
+        series = series.groupby(df[groupby_col], observed=True)
+    return series.cumsum()
+
+
+def get_streak(
+    df: pd.DataFrame,
+    col_name: str,
+    counted_value: Any,
+    groupby_col: str | None = "rfid",
+):
+    """
+    Count consecutive streaks of a given value per RFID.
+
+    Parameters
+    ----------
+    col_name : str
+        Name of the pandas series containing the values to check for
+        streaks.
+    counted_value : any, default=True
+        The value to count streaks of. Consecutive occurrences of this
+        value are accumulated until a different value appears.
+
+    Returns
+    -------
+    pandas.Series
+        A pandas series where each entry represents the current streak
+        length of `counted_value` for the corresponding RFID.
+
+    Notes
+    -----
+    - Streaks are computed separately for each RFID in `df_rfid`.
+    - When `df_values[i] != counted_value`, the streak counter for that RFID is reset to 0.
+    - Multiple RFIDs are tracked in parallel.
+    """
+    if groupby_col is not None:
+        groupby_idx = {k: v for v, k in enumerate(df[groupby_col].unique())}
+        streaks = [0 for _ in groupby_idx]
+    else:
+        groupby_idx = {0: 0}
+        streaks = [0]
+    out = []
+
+    for i, v in enumerate(df[col_name]):
+        if groupby_col is not None:
+            group_value = df[groupby_col].iloc[i]
+        else:
+            group_value = 0
+
+        if v == counted_value:
+            streaks[groupby_idx[group_value]] += 1
+        else:
+            streaks[groupby_idx[group_value]] = 0
+
+        out.append(streaks[groupby_idx[group_value]])
+
+    return pd.Series(out, index=df[col_name].index)
+
+
+def get_accuracy(
+    df: pd.DataFrame,
+    on_col: str,
+    window: int,
+    groupby_col: str = "rfid",
+):
+    """
+    Compute rolling mean (accuracy) of the last `window` non-null values of
+    `value_col` per RFID. Returns a pandas Series aligned with df.index.
+    The result is continuous series (one value per row).
+    """
+
+    def _rolling(group):
+        result = []
+        for idx in group.index:
+            vals = group.loc[:idx, on_col]
+            vals = vals[vals.notnull()]
+            if len(vals) >= window:
+                mean_val = vals.iloc[-window:].mean()
+            else:
+                mean_val = np.nan
+            result.append(mean_val)
+        return pd.Series(result, index=group.index, name="new_col")
+
+    series = df.groupby(groupby_col, group_keys=False, observed=True).apply(
+        _rolling
+    )
+    return series
+
+
+def plot_two_columns(df, x_col, y_cols, color_col, line_dash_map=None):
+    """
+    Plot 2 columns of a dataframe as lines with different dash styles.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The dataframe containing the data.
+    x_col : str
+        Column name for x-axis.
+    y_cols : list[str]
+        Two column names to plot as y values.
+    color_col : str
+        Column name to determine colors.
+    line_dash_map : dict, optional
+        Mapping of y_cols to dash styles, e.g. {"col1": "solid", "col2": "dash"}.
+        If None, defaults to first solid, second dashed.
+
+    Returns
+    -------
+    fig : plotly.graph_objs.Figure
+    """
+
+    if len(y_cols) != 2:
+        raise ValueError("y_cols must contain exactly 2 column names.")
+
+    # Default dash map
+    if line_dash_map is None:
+        line_dash_map = {y_cols[0]: "solid", y_cols[1]: "dash"}
+
+    df_long = df.melt(
+        id_vars=[x_col, color_col],
+        value_vars=y_cols,
+        var_name="variable",
+        value_name="value",
+    )
+
+    line_dash_sequence = [line_dash_map[y_col] for y_col in y_cols]
+
+    fig = px.line(
+        df_long,
+        x=x_col,
+        y="value",
+        color=color_col,
+        color_discrete_sequence=DISCRETE_CLRS,
+        line_dash="variable",
+        line_dash_sequence=line_dash_sequence,
+    )
+
+    return fig
+
+
+def day_or_night(time, night_begin: int, night_duration: int):
+    hour = time.hour
+    night_hours = np.arange(night_begin, night_begin + night_duration) % 24
+    return "night" if hour in night_hours else "day"
+
+
 class AnalysisOptionDialog(QDialog):
     """Dialog asking the user which analysis option to run."""
 
     LOGS = 0
-    ORIGINAL_CSV = 1
-    COMPUTED_CSV = 2
+    RAW_CSV = 1
+    PROCESSED_CSV = 2
 
     def __init__(self) -> None:
         super().__init__()
@@ -596,9 +833,9 @@ class AnalysisOptionDialog(QDialog):
         )
 
         for label, value in [
-            ("Logs file", self.LOGS),
-            ("Original CSV file", self.ORIGINAL_CSV),
-            ("Computed CSV file", self.COMPUTED_CSV),
+            ("Log(s) file(s)", self.LOGS),
+            ("Original CSV file", self.RAW_CSV),
+            ("Computed CSV file", self.PROCESSED_CSV),
         ]:
             btn = QPushButton(label)
             btn.clicked.connect(lambda _, v=value: self._select(v))
@@ -607,6 +844,935 @@ class AnalysisOptionDialog(QDialog):
     def _select(self, value: int) -> None:
         self.choice = value
         self.accept()
+
+
+class NightParametersDialog(QDialog):
+    """Ask user for night parameters: begin hour and duration (hours)."""
+
+    def __init__(
+        self, parent=None, default_begin: int = 20, default_duration: int = 12
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Night parameters")
+
+        self.night_begin_spin = QSpinBox(self)
+        self.night_begin_spin.setRange(0, 23)
+        self.night_begin_spin.setValue(default_begin)
+
+        self.night_duration_spin = QSpinBox(self)
+        self.night_duration_spin.setRange(0, 24)
+        self.night_duration_spin.setValue(default_duration)
+
+        form = QFormLayout()
+        form.addRow("Night begin (hour 0-23)", self.night_begin_spin)
+        form.addRow("Night duration (hours)", self.night_duration_spin)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel,
+            parent=self,
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+
+        layout = QVBoxLayout(self)
+        layout.addLayout(form)
+        layout.addWidget(buttons)
+
+    def get_values(self) -> tuple[int, int]:
+        return int(self.night_begin_spin.value()), int(
+            self.night_duration_spin.value()
+        )
+
+
+def draw_nights(
+    fig: go.Figure,
+    start_time: pd.Timestamp,
+    end_time: pd.Timestamp,
+    night_begin: int | None,
+    night_duration: int,
+):
+    """Draw night periods on a plotly figure as shaded areas."""
+    if night_begin is None:
+        return fig
+    time = start_time
+    while time < end_time:
+        if time.hour == night_begin:
+            x0 = time
+            x1 = time + pd.Timedelta(hours=night_duration)
+            if x1 > end_time:
+                x1 = end_time
+            fig.add_vrect(
+                x0=x0,
+                x1=x1,
+                line_width=0,
+                fillcolor="black",
+                layer="below",
+                opacity=0.1,
+            )
+        time += pd.Timedelta(hours=1)
+    return fig
+
+
+def plt_curve_std(
+    df,
+    x_col,
+    y_col,
+    y_col_std,
+    x_lbl=None,
+    y_lbl=None,
+    title=None,
+    name=None,
+):
+    """Generate a plotly figure with a curve and its standard deviation as a
+    shaded area."""
+
+    std_up = df[y_col] + df[y_col_std]
+    std_low = df[y_col] - df[y_col_std]
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=list(df[x_col]) + list(df[x_col])[::-1],
+            y=list(std_up) + list(std_low)[::-1],
+            fill="toself",
+            fillcolor="rgba(255, 151, 255, 0.2)",
+            line=dict(color="rgba(255,255,255,0)"),  # no border
+            hoverinfo="skip",
+            showlegend=True,
+            name="± std",
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=df[x_col],
+            y=df[y_col],
+            mode="lines",
+            name=name,
+            line=dict(color="rgba(255, 151, 255, 1.0)"),
+        )
+    )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title=x_col if x_lbl is None else x_lbl,
+        yaxis_title=y_col if y_lbl is None else y_lbl,
+    )
+
+    return fig
+
+
+def draw_phases(
+    fig: go.Figure,
+    sessions: pd.DataFrame,
+    x_col: str,
+    orientation: Literal["v", "h"] = "v",
+):
+    """Draw vertical or horizontal lines on a plotly figure to indicate the
+    start of each phase for each RFID.
+    """
+    rfids = sessions["rfid"].unique()
+    phases = sessions["phase"].unique()
+    for rfid in rfids:
+        for phase in phases:
+            line_x = sessions[
+                (sessions["phase"] == phase) & (sessions["rfid"] == rfid)
+            ][x_col].min()
+            if line_x is pd.NaT:
+                continue
+            if orientation == "v":
+                fig.add_vline(
+                    x=line_x,
+                    layer="below",
+                    line_width=1,
+                    line_dash="dot",
+                    line_color=DISCRETE_CLRS[
+                        list(rfids).index(rfid) % len(DISCRETE_CLRS)
+                    ],
+                )
+            if orientation == "h":
+                fig.add_hline(
+                    y=line_x,
+                    layer="below",
+                    line_width=1,
+                    line_dash="dot",
+                    line_color=DISCRETE_CLRS[
+                        list(rfids).index(rfid) % len(DISCRETE_CLRS)
+                    ],
+                )
+    return fig
+
+
+def get_hour_overlap_ratio(t_begin, t_end):
+    """
+    Calculate the percentage of each hour overlapped by a given time interval.
+
+    Parameters
+    ----------
+    t_begin : pd.Timestamp
+        Start timestamp of the interval
+    t_end : pd.Timestamp
+        End timestamp of the interval
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with `time`, `hour`, `day`, and `hour_ratio` of each
+        hour covered by the interval
+    """
+    hours = pd.date_range(t_begin.floor("h"), t_end.floor("h"), freq="h")
+    results = []
+    for t in hours:
+        h_start = t
+        h_end = t + pd.Timedelta(hours=1)
+        overlap_start = max(t_begin, h_start)
+        overlap_end = min(t_end, h_end)
+        if overlap_end > overlap_start:
+            duration = (overlap_end - overlap_start).total_seconds()
+            results.append(
+                {
+                    "time": t,
+                    "date": t.date(),
+                    "hour": t.hour,
+                    "day": t.day,
+                    "hour_ratio": duration / 3600,
+                }
+            )
+    return pd.DataFrame(results)
+
+
+def insert_trials_report(
+    report_manager: HTMLReportManager,
+    tdf: pd.DataFrame,
+    sdf: pd.DataFrame,
+    night_begin: int,
+    night_duration: int,
+):
+
+    pbar = tqdm(total=14, desc="Generating trials reports", unit="report")
+
+    trial_content = """
+    <div style="width:80%; margin: 0 auto; text-align: center;">
+        <div style="margin-bottom:1em;">
+            A <i>trial</i> is define between two <i>trial state</i> or between one 
+            <i>initial state</i> and a <i>trial state</i>. It begin either when an
+            animal enter the test or when the <i>trial state</i> is set, and ends
+            when the next <i>trial state</i> is set. It often correpond to the
+            animal is proposed a test with image displayed to the moment it collect
+            the reward. A <i>session</i> (see <i>id_session</i>) is define between
+            two gate moment : the moment the animal is allowed into the test zone
+            and the moment it is free to go in the house. During a <i>session</i>,
+            there is a least one trial, but multiple can occur.
+            All times and durations are in seconds (s).
+        </div>
+    </div>
+    """
+    report_manager.add_title("Mice trials datas", content=trial_content)
+
+    # =======================================
+    title = "Phases timeline"
+    # =======================================
+    df_plot = sdf.groupby(
+        ["rfid", "phase"], as_index=False, observed=True
+    ).agg({"start_time": "min", "end_time": "max"})
+
+    fig1 = px.timeline(
+        df_plot,
+        x_start="start_time",
+        x_end="end_time",
+        y="rfid",
+        color="phase",
+        color_discrete_sequence=sequential.Electric_r,
+    )
+    fig1.update_layout(
+        xaxis_title="Time",
+        yaxis_title="RFID",
+        legend_title="Phases",
+        showlegend=False,
+    )
+
+    df_plot = tdf.groupby(
+        ["rfid", "phase"], as_index=False, observed=True, sort=False
+    )["cumul_trials_total"].max()
+
+    df_plot["phase_trials"] = (
+        df_plot.groupby("rfid", as_index=False, observed=True)[
+            "cumul_trials_total"
+        ]
+        .diff()
+        .fillna(df_plot["cumul_trials_total"])
+    )
+
+    fig2 = px.bar(
+        df_plot,
+        x="phase_trials",
+        y="rfid",
+        color="phase",
+        color_discrete_sequence=sequential.Electric_r,
+        orientation="h",
+    )
+    fig2.update_layout(
+        xaxis_title="Trials",
+        yaxis_title="RFID",
+        legend_title="Phases",
+        showlegend=False,
+    )
+
+    explanations = """
+    Overview of the time (left) and number of trials (right) took by each 
+    mouse (RFID) for each phases.
+    """
+    report_manager.add_multi_fig_report(
+        title,
+        [fig1, fig2],
+        top_note=explanations,
+    )
+
+    report_manager.add_title("Mice accuracy")
+
+    pbar.update(1)
+    # =======================================
+    title = "Accuracy over last 50 trials"
+    # =======================================
+    fig = px.line(
+        tdf,
+        "cumul_trials_total",
+        "accuracy_50",
+        color="rfid",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+    fig = draw_phases(fig, tdf, "cumul_trials_total")
+    fig.update_layout(
+        xaxis_title="Cumulative trials",
+        yaxis_title="Accuracy over last 50 trials",
+        legend_title="RFID",
+        showlegend=True,
+        yaxis=dict(range=[0, 1]),
+    )
+
+    explanations = """
+        Accuracy over the last 50 trials for each mouse (RFID). Each point
+        represents a trials, and an accuracy for each trial is calculated with
+        this one and the 49 that preceded it.
+        """
+    report_manager.add_report(title, fig, top_note=explanations)
+
+    pbar.update(1)
+    # =======================================
+    title = "Superposed accuracy per trials - reversal start"
+    # =======================================
+
+    nb_rfids = tdf["rfid"].nunique()
+    fig = go.Figure()
+    rfids = tdf["rfid"].unique()
+
+    phases = tdf["phase"].unique()
+    reversal = None
+    for phase in phases:
+        if "reversal" in phase.lower():
+            reversal = phase
+
+    for rfid_idx, rfid in enumerate(rfids):
+        fig.add_trace(
+            go.Scatter(
+                x=tdf[tdf["rfid"] == rfid]["cumul_trials_total"]
+                - tdf[(tdf["rfid"] == rfid) & (tdf["phase"] == reversal)][
+                    "cumul_trials_total"
+                ].min(),
+                y=tdf[tdf["rfid"] == rfid][f"accuracy_50"],
+                mode="lines",
+                name=f"RFID {rfid}",
+                line=dict(color=DISCRETE_CLRS[rfid_idx % len(DISCRETE_CLRS)]),
+                opacity=0.8,
+            )
+        )
+
+    fig.update_layout(
+        xaxis_title="Cumulative trials",
+        yaxis_title="Accuracy",
+        yaxis=dict(range=[0, 1]),
+        legend_title="RFID",
+        showlegend=True,
+    )
+
+    explanations = """
+        Overview of the accuracy for each mouse (RFID) with a choosable trials
+        window, and with a synchronisation on the reversal begginning. Each
+        point represents a trials, and an accuracy for each trial is calculated
+        with this one and the 49 that preceded it.
+        """
+    report_manager.add_report(title, fig, top_note=explanations)
+
+    pbar.update(1)
+    # =======================================
+    title = "Accuracy over last 50 trials (time axis)"
+    # =======================================
+    fig = px.line(
+        tdf,
+        "trial_time",
+        "accuracy_50",
+        color="rfid",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+    fig = draw_phases(fig, sdf, "start_time")
+    fig.update_layout(
+        xaxis_title="Trial begin time",
+        yaxis_title="Accuracy over last 50 trials",
+        legend_title="RFID",
+        showlegend=True,
+        yaxis=dict(range=[0, 1]),
+    )
+    fig = draw_nights(
+        fig,
+        tdf["trial_time"].min(),
+        tdf["trial_time"].max(),
+        night_begin,
+        night_duration,
+    )
+
+    explanations = """
+        Accuracy over the last 50 trials for each mouse (RFID). Each point
+        represents a trials, and an accuracy for each trial is calculated with
+        this one and the 49 that preceded it. The x axis is time instead of
+        trials count.
+        """
+    report_manager.add_report(title, fig, top_note=explanations)
+
+    pbar.update(1)
+    # =======================================
+    title = "Trials per hour of the day"
+    # =======================================
+    df_plot = (
+        tdf.groupby(["rfid", "hour"], observed=True)
+        .size()
+        .reset_index(name="count")
+        .sort_values(by="hour")
+    )
+    df_plot["hour"] = df_plot["hour"].astype(str) + "h"
+
+    fig1 = px.bar_polar(
+        df_plot,
+        r="count",
+        theta="hour",
+        color="rfid",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+
+    fig1.update_layout(
+        polar=dict(radialaxis=dict(title=dict(text="Trial count"))),
+        legend_title="RFID",
+    )
+
+    fig2 = px.line_polar(
+        df_plot,
+        r="count",
+        theta="hour",
+        line_close=True,
+        color="rfid",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+
+    fig2.update_layout(
+        polar=dict(radialaxis=dict(title=dict(text="Trial count"))),
+        legend_title="RFID",
+    )
+
+    explanations = """
+        Number of trials performed by each mouse (RFID) for each hour of the
+        day. The graphs on left and right are the same data displayed in
+        different ways: histogram on left and line on right.
+        """
+    report_manager.add_multi_fig_report(
+        title,
+        [fig1, fig2],
+        top_note=explanations,
+    )
+
+    pbar.update(1)
+    # =======================================
+    title = "Test zone occupancy"
+    # =======================================
+
+    results = []
+    for (session, rfid), group in sdf.groupby(
+        ["session_id", "rfid"], observed=True
+    ):
+        t_begin = group["start_time"].min()
+        t_end = group["end_time"].max()
+        if t_begin == t_end:
+            continue
+        hourly = get_hour_overlap_ratio(t_begin, t_end)
+        hourly["hour_percent"] = hourly["hour_ratio"] * 100
+        hourly["rfid"] = str(rfid)
+        hourly["id_session"] = str(session)
+        results.append(hourly)
+    df_plot = pd.concat(results, ignore_index=True)
+
+    fig = px.bar(
+        df_plot,
+        x="time",
+        y="hour_percent",
+        color="rfid",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+
+    fig = draw_nights(
+        fig,
+        sdf["start_time"].min(),
+        sdf["start_time"].max(),
+        night_begin,
+        night_duration,
+    )
+
+    fig.update_layout(
+        xaxis_title="Hours of the day",
+        yaxis_title="Occupancy time (%)",
+        legend_title="RFID",
+        showlegend=True,
+        yaxis=dict(range=[0, 100]),
+    )
+
+    explanations = """
+        Percentage of time spent in the test zone for each hour of the day and
+        by each mouse (RFID).
+        """
+    report_manager.add_report(title, fig, top_note=explanations)
+
+    pbar.update(1)
+    # =======================================
+    title = "Cumulative reward delivered and taken"
+    # =======================================
+    fig = plot_two_columns(
+        tdf,
+        x_col="trial_time",
+        y_cols=["cumul_reward_collected", "cumul_reward_delivered"],
+        color_col="rfid",
+    )
+    fig.update_layout(
+        xaxis_title="Trial begin time",
+        yaxis_title="Cumulative reward",
+        legend_title="RFID",
+        showlegend=True,
+    )
+    fig = draw_phases(fig, tdf, "trial_time")
+    fig = draw_nights(
+        fig,
+        tdf["trial_time"].min(),
+        tdf["trial_time"].max(),
+        night_begin,
+        night_duration,
+    )
+
+    explanations = """
+        Overview of the cumulative reward delivered and taken for each mouse
+        (RFID). A reward taken has been collected by the mouse, while a reward
+        delivered has been given by the system (but not necessarily collected).
+        The difference between these two curves indicates the reward loss."
+        """
+    report_manager.add_report(title, fig, top_note=explanations)
+
+    pbar.update(1)
+    # =======================================
+    title = "Cumulative reward loss"
+    # =======================================
+    fig = px.line(
+        tdf,
+        "trial_time",
+        "cumul_reward_lossed",
+        color="rfid",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+    fig = draw_phases(fig, tdf, "trial_time")
+    fig = draw_nights(
+        fig,
+        tdf["trial_time"].min(),
+        tdf["trial_time"].max(),
+        night_begin,
+        night_duration,
+    )
+
+    fig.update_layout(
+        xaxis_title="Trial begin time",
+        yaxis_title="Cumulative reward loss",
+        legend_title="RFID",
+        showlegend=True,
+    )
+
+    explanations = """
+        Overview of the rewards lost by each mouse (RFID). When a horizontal
+        line is observed, it means the mouse has understood the delivery system
+        and is collecting all the rewards it can."
+        """
+    report_manager.add_report(title, fig, top_note=explanations)
+
+    pbar.update(1)
+    # =======================================
+    title = "Cumulative left or right touch (-1 for left, +1 for right)"
+    # =======================================
+    xmax = abs(tdf["cumul_choice"]).max()
+
+    fig = px.line(
+        tdf,
+        "cumul_choice",
+        "cumul_trials_total",
+        color="rfid",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+    fig = draw_phases(fig, tdf, "cumul_trials_total", orientation="h")
+    fig.update_layout(
+        xaxis_title="Cumulative touch choice (-1 for left, +1 for right)",
+        yaxis_title="Trials",
+        legend_title="RFID",
+        showlegend=True,
+        xaxis=dict(range=[-xmax, xmax]),
+    )
+
+    explanations = """
+        Overview of the cumulative left or right touch choices for each mouse
+        (RFID). A value of -1 indicates a left touch, while +1 indicates a
+        right touch. A left (right) trend indicates a majority of left (right)
+        touches. A vertical trend indicates an equal number of left and
+        right touches.
+        """
+    report_manager.add_report(title, fig, top_note=explanations)
+
+    pbar.update(1)
+    # =======================================
+    title = "Attempts for RFID reading"
+    # =======================================
+    fig = px.scatter(
+        sdf,
+        "start_time",
+        "rfid_read_in",
+        marginal_x="histogram",
+        marginal_y="histogram",
+        facet_col="rfid",
+        color="rfid",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+    # fig = draw_nights(
+    #     fig,
+    #     sdf["start_time"].min(),
+    #     sdf["start_time"].max(),
+    #     night_begin,
+    #     night_duration,
+    # )
+    for ann in fig.layout.annotations:
+        ann.text = ""  # remove titles from facets
+    fig.update_xaxes(title_text=None)  # remove x axis labels from facets
+    fig.update_layout(
+        yaxis_title="RFID reading attemps",
+        legend_title="RFID",
+        showlegend=True,
+    )
+
+    explanations = """
+        When a mouse (RFID) is in the gate (detected by its weight), the system
+        tries to read its RFID tag. This plot shows the number of attempts made
+        before successfully reading the RFID tag. It cannot goes beyond 100. If
+        100 is reached, it is count as a "miss read". The total miss reads are
+        showed in the experiment summary.
+        """
+    report_manager.add_report(title, fig, top_note=explanations)
+
+    pbar.update(1)
+    # =======================================
+    title = "XY touch positions"
+    # =======================================
+    fig = px.density_heatmap(
+        tdf,
+        x="x_touch",
+        y="y_touch_corrected",
+        marginal_x="violin",
+        marginal_y="violin",
+        color_continuous_scale=CONTINUOUS_CLRS,
+        nbinsx=32,
+        nbinsy=32,
+        facet_col="rfid",
+        facet_col_wrap=2,
+    )
+    fig.update_layout(
+        xaxis_title="X position (px)",
+        yaxis_title="Y position (px)",
+        showlegend=True,
+    )
+
+    explanations = """
+        Density heatmap of where the mouse (RFID) has touch the screen for each
+        of their trials.
+        """
+    report_manager.add_report(title, fig, top_note=explanations)
+
+    report_manager.add_title("Mice efficiency and behavior")
+
+    pbar.update(1)
+    # =======================================
+    title = "Successful touch in a row"
+    # =======================================
+    fig1 = px.scatter(
+        tdf,
+        "trial_time",
+        "success_in_a_row",
+        marginal_x="histogram",
+        marginal_y="histogram",
+        color="rfid",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+    fig1 = draw_nights(
+        fig1,
+        tdf["trial_time"].min(),
+        tdf["trial_time"].max(),
+        night_begin,
+        night_duration,
+    )
+    fig1 = draw_phases(fig1, tdf, "trial_time")
+    fig1.update_layout(
+        yaxis_title="Successful touches in a row",
+        legend_title="RFID",
+    )
+
+    fig2 = px.scatter(
+        tdf,
+        "cumul_trials_total",
+        "success_in_a_row",
+        marginal_x="histogram",
+        marginal_y="histogram",
+        color="rfid",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+    fig2 = draw_phases(fig2, tdf, "cumul_trials_total")
+    fig2.update_layout(
+        yaxis_title="Successful touches in a row",
+        legend_title="RFID",
+    )
+
+    explanations = """
+        Number of successful touches in a row for each mouse (RFID). It is
+        shown against time (left) and against trials (right).
+        """
+    report_manager.add_multi_fig_report(
+        title,
+        [fig1, fig2],
+        top_note=explanations,
+    )
+
+    pbar.update(1)
+    # =======================================
+    title = "Failed touch in a row"
+    # =======================================
+    fig1 = px.scatter(
+        tdf,
+        "trial_time",
+        "fail_in_a_row",
+        marginal_x="histogram",
+        marginal_y="histogram",
+        color="rfid",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+    fig1 = draw_nights(
+        fig1,
+        tdf["trial_time"].min(),
+        tdf["trial_time"].max(),
+        night_begin,
+        night_duration,
+    )
+    fig1 = draw_phases(fig1, tdf, "trial_time")
+    fig1.update_layout(
+        yaxis_title="Failed touches in a row",
+        legend_title="RFID",
+        showlegend=True,
+    )
+
+    fig2 = px.scatter(
+        tdf,
+        "cumul_trials_total",
+        "fail_in_a_row",
+        marginal_x="histogram",
+        marginal_y="histogram",
+        color="rfid",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+    fig2 = draw_phases(fig2, tdf, "cumul_trials_total")
+    fig2.update_layout(
+        yaxis_title="Failed touches in a row",
+        legend_title="RFID",
+        showlegend=True,
+    )
+
+    explanations = """
+        Number of failed touches in a row for each mouse (RFID). It is
+        shown against time (left) and against trials (right).
+        """
+    report_manager.add_multi_fig_report(
+        title,
+        [fig1, fig2],
+        top_note=explanations,
+    )
+
+    pbar.update(1)
+    # =======================================
+    title = "Time before picking reward"
+    # =======================================
+    fig = px.scatter(
+        tdf,
+        "trial_time",
+        "SUCCESS_state_duration",
+        color="rfid",
+        marginal_x="histogram",
+        marginal_y="histogram",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+
+    fig.update_layout(
+        xaxis_title="Trial begin time",
+        yaxis_title="Duration of SUCCESS state (s)",
+        legend_title="RFID",
+        showlegend=True,
+    )
+    fig = draw_nights(
+        fig,
+        tdf["trial_time"].min(),
+        tdf["trial_time"].max(),
+        night_begin,
+        night_duration,
+    )
+    fig = draw_phases(fig, tdf, "trial_time")
+
+    explanations = """
+        Time, in seconds, taken by each mouse (RFID) to pick the reward after a successful
+        touch.
+        """
+    report_manager.add_report(title, fig, top_note=explanations)
+
+    pbar.update(1)
+    # =======================================
+    title = "Animal weights during experiment"
+    # =======================================
+    fig = px.scatter(
+        sdf,
+        "start_time",
+        "weight_in",
+        color="rfid",
+        marginal_y="histogram",
+        color_discrete_sequence=DISCRETE_CLRS,
+    )
+    fig = draw_phases(fig, sdf, "start_time")
+    fig.update_layout(
+        xaxis_title="Session begin time",
+        yaxis_title="Weight (g)",
+        legend_title="RFID",
+        showlegend=True,
+    )
+
+    explanations = """
+        Weight of each mouse (RFID) during the experiment. Each point
+        represents the weight recorded when entering or exiting the test zone.
+        """
+    report_manager.add_report(title, fig, top_note=explanations)
+
+    #######################################
+    #   TABLES   #
+    #######################################
+    report_manager.add_table_headers(name="Trials table", df=tdf)
+
+    report_manager.add_table_headers(name="Sessions table", df=sdf)
+
+    return report_manager
+
+
+def insert_sensors_report(
+    report_manager: HTMLReportManager,
+    df: pd.DataFrame,
+    night_begin,
+    night_duration,
+):
+    """Generate reports for the sensors data.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame containing the sensors data.
+    night_begin : int
+        The beginning hour of the night period.
+    night_duration : int
+        The duration of the night period in hour.
+    """
+
+    explanations = """
+        Overview of the sensors data collected during the experiment. Light and
+        sound levels are not calibrated but an ampiric value is sufficient for
+        a significant information.
+        """
+    report_manager.add_title("Sensors data", content=explanations)
+
+    fig = plt_curve_std(
+        df,
+        "time",
+        "temperature",
+        "temperature_std",
+        y_lbl="Temperature (°C)",
+    )
+    fig = draw_nights(
+        fig,
+        df["time"].min(),
+        df["time"].max(),
+        night_begin,
+        night_duration,
+    )
+    report_manager.add_report("Temperature", fig)
+
+    fig = plt_curve_std(
+        df, "time", "pressure", "pressure_std", y_lbl="Pressure (kPa)"
+    )
+    fig = draw_nights(
+        fig,
+        df["time"].min(),
+        df["time"].max(),
+        night_begin,
+        night_duration,
+    )
+    report_manager.add_report("Pressure", fig)
+
+    fig = plt_curve_std(
+        df, "time", "humidity", "humidity_std", y_lbl="Humidity (%)"
+    )
+    fig = draw_nights(
+        fig,
+        df["time"].min(),
+        df["time"].max(),
+        night_begin,
+        night_duration,
+    )
+    report_manager.add_report("Humidity", fig)
+
+    fig = plt_curve_std(df, "time", "light", "light_std", y_lbl="Light (?)")
+    fig = draw_nights(
+        fig,
+        df["time"].min(),
+        df["time"].max(),
+        night_begin,
+        night_duration,
+    )
+    report_manager.add_report("Light", fig)
+
+    fig = plt_curve_std(df, "time", "sound", "sound_std", y_lbl="Sound (?)")
+    fig = draw_nights(
+        fig,
+        df["time"].min(),
+        df["time"].max(),
+        night_begin,
+        night_duration,
+    )
+    report_manager.add_report("Sound", fig)
+
+    #######################################
+    #   TABLE   #
+    #######################################
+    report_manager.add_table_headers(name="Sensors table", df=df)
+
+    return report_manager
 
 
 if __name__ == "__main__":
@@ -621,7 +1787,6 @@ if __name__ == "__main__":
         sys.exit(0)
 
     option = dialog.choice
-    print("option:", option)
     if option is None:
         QMessageBox.warning(
             None,
@@ -634,23 +1799,14 @@ if __name__ == "__main__":
         sys.exit(0)
 
     if option <= AnalysisOptionDialog.LOGS:
+        logging.info(
+            f"Analysis option selected: {option} - One or multiple logs files"
+        )
+
         # Load and merge logs
         # ----------------
         log_files = select_files(".log.txt")
         merged_file = merge_logs(log_files)
-        # merged_file = (
-        #     Path.home()
-        #     / "Syncnot"
-        #     / "micecraft"
-        #     / "src"
-        #     / "micecraft"
-        #     / "examples"
-        #     / "experiments"
-        #     / "visualdiscrimination"
-        #     / "data"
-        #     / "merged"
-        #     / "modif_visual_discrimination_example-2026-merged.log.txt"
-        # )
 
         # Create csv files
         # ----------------
@@ -658,6 +1814,16 @@ if __name__ == "__main__":
             extractor = LogAnalyzer(merged_file)
             extractor.process_log()
             sensors_path, sessions_path, trials_path = extractor.to_csv()
+        else:
+            QMessageBox.warning(
+                None,
+                "No log files selected",
+                (
+                    "No log files were selected for analysis. "
+                    "Please select at least one log file."
+                ),
+            )
+            sys.exit(0)
 
     else:
         # Load csv files
@@ -673,7 +1839,11 @@ if __name__ == "__main__":
             if f.name.endswith(".trials.csv"):
                 trials_path = f
 
-        if not all([sensors_path, sessions_path, trials_path]):
+        if (
+            sensors_path is None
+            or sessions_path is None
+            or trials_path is None
+        ):
             QMessageBox.warning(
                 None,
                 "Missing CSV files",
@@ -684,13 +1854,118 @@ if __name__ == "__main__":
             )
             sys.exit(0)
 
-    if option <= AnalysisOptionDialog.ORIGINAL_CSV:
-        # TODO
-        pass
+    # sensors_df = pd.read_csv(sensors_path, parse_dates=["time"])
+    sessions_df = pd.read_csv(
+        sessions_path,
+        parse_dates=["start_time", "end_time"],
+        dtype={"rfid": str},
+    )
+    trials_df = pd.read_csv(trials_path, parse_dates=["trial_time"])
 
-    if option <= AnalysisOptionDialog.COMPUTED_CSV:
-        # TODO
-        pass
+    # ask user for night parameters (beginning hour and duration)
+    night_dialog = NightParametersDialog()
+    if not night_dialog.exec():
+        night_begin, night_duration = 20, 12
+    else:
+        night_begin, night_duration = night_dialog.get_values()
 
-# C:\Users\xavie\Syncnot\micecraft\src\micecraft\examples\experiments\visualdiscrimination\data\merged
+    if option <= AnalysisOptionDialog.RAW_CSV:
 
+        # Merge session information (rfid, phase) into the trials dataframe
+        # Keep only trials that have a matching session (inner join)
+        trials_df = trials_df.merge(
+            sessions_df[["session_id", "rfid", "phase"]],
+            on="session_id",
+            how="inner",
+        )
+
+        # ================ TRIALS ================
+
+        # cumulatives
+        trials_df["cumul_reward_collected"] = get_cumulative(
+            trials_df,
+            on_col="reward_collected",
+            fill_na=False,
+        )
+
+        trials_df["cumul_reward_delivered"] = get_cumulative(
+            trials_df,
+            on_col="reward_collected",
+            map_arg={True: True, False: True},
+            fill_na=False,
+        )
+
+        trials_df["cumul_reward_lossed"] = (
+            trials_df["cumul_reward_delivered"]
+            - trials_df["cumul_reward_collected"]
+        )
+
+        trials_df["cumul_choice"] = get_cumulative(
+            trials_df,
+            on_col="touch_left",
+            map_arg={True: -1, False: 1},
+            fill_na=0,
+        )
+
+        trials_df["cumul_trials_total"] = get_cumulative(
+            trials_df,
+            on_col="trial_result",
+            map_arg={True: True, False: True},
+            fill_na=False,
+        )
+
+        trials_df["cumul_trials_result"] = get_cumulative(
+            trials_df,
+            on_col="trial_result",
+            map_arg={True: +1, False: -1},
+            fill_na=False,
+        )
+
+        # streaks
+        trials_df["success_in_a_row"] = get_streak(
+            trials_df, col_name="trial_result", counted_value=True
+        )
+
+        trials_df["fail_in_a_row"] = get_streak(
+            trials_df, col_name="trial_result", counted_value=False
+        )
+
+        # accuracy
+        trials_df[f"accuracy_50"] = get_accuracy(
+            trials_df, on_col="trial_result", window=50
+        )
+
+        trials_df["y_touch_corrected"] = (
+            trials_df["y_touch"].max() - trials_df["y_touch"]
+        )
+
+        # others
+        trials_df["hour"] = trials_df["trial_time"].dt.hour
+        trials_df["day"] = trials_df["trial_time"].dt.date
+        trials_df["day_or_night"] = trials_df["trial_time"].apply(
+            day_or_night, args=(night_begin, night_duration)
+        )
+
+        # ================ SAVE ================
+        name = trials_path.name.replace(".trials.csv", "_processed.trials.csv")
+        trials_df.to_csv(trials_path.parent / name, index=False)
+
+    report_manager = HTMLReportManager()
+    report_manager.reports_creation_focus("TouchScreen Analysis")
+    report_manager = insert_trials_report(
+        report_manager,
+        trials_df,
+        sessions_df,
+        night_begin,
+        night_duration,
+    )
+    # report_manager = insert_sensors_report(
+    #     report_manager,
+    #     sensors_df,
+    #     night_begin,
+    #     night_duration,
+    # )
+
+    report_manager.generate_local_output(trials_path.parent / "Analysis")
+
+    report_manager.open_local_output(trials_path.parent / "Analysis")
