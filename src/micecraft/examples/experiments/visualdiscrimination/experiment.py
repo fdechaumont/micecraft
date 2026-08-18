@@ -12,7 +12,7 @@ import sys
 import logging
 from pathlib import Path
 from random import shuffle
-from threading import Timer
+from threading import Timer, Lock
 from typing import Any, Callable
 from datetime import datetime, timedelta
 
@@ -635,8 +635,14 @@ class Room:
         self.video_recorder: Callable[[Animal, bool], None] | None = None
         """Function to call to record a video of the animal."""
 
-        self.running_timers: list[Timer] = []
+        self.timers_running: list[Timer] = []
         """List of currently running timers."""
+        self.timers_lock: Lock = Lock()
+        """Lock protecting access to `running_timers` and `_timer_generation`."""
+        self.timer_generation: int = 0
+        """Incremented on every `cancel_all_timers()` call. Lets scheduled
+        callbacks detect they became stale (room moved to another state)
+        even if `Timer.cancel()` was too late to actually stop them."""
 
         self.gate: Gate = gate
         self.gate.name = self.name + "-" + "Gate"
@@ -734,14 +740,16 @@ class Room:
             return
 
         if "symbol xy touched" in event.description:
-            # data: name, id, x, y, xf, yf
+            # data: name, id, x, y, xf, yf, xr, yr
             if event.data is not None:
                 img_name = event.data[0]
                 img_id = event.data[1]
                 img_x = event.data[2]
                 img_y = event.data[3]
-                touch_x = event.data[4]
-                touch_y = event.data[5]
+                t_x_px = event.data[4]
+                t_y_px = event.data[5]
+                t_x_ratio = event.data[6]
+                t_y_ratio = event.data[7]
                 logging.info(
                     f"[useful_touch] room: {str(self)} "
                     f"rfid: {animal} "
@@ -749,8 +757,10 @@ class Room:
                     f"image_id: {img_id} "
                     f"image_x: {img_x} "
                     f"image_y: {img_y} "
-                    f"touch_x: {touch_x} "
-                    f"touch_y: {touch_y} "
+                    f"touch_x_px: {t_x_px} "
+                    f"touch_y_px: {t_y_px} "
+                    f"touch_x_ratio: {t_x_ratio} "
+                    f"touch_y_ratio: {t_y_ratio} "
                 )
 
             correct_image = animal.phase.force_correct_image
@@ -823,15 +833,19 @@ class Room:
         # Unused touches
         # ----------------
         if "missed" in event.description:
-            # data: xf, yf
+            # data: xf, yf, xr, yr
             if event.data is not None:
-                touch_x = event.data[0]
-                touch_y = event.data[1]
+                t_x_px = event.data[0]
+                t_y_px = event.data[1]
+                t_x_ratio = event.data[2]
+                t_y_ratio = event.data[3]
                 logging.info(
                     f"[useless_touch] room: {str(self)} "
                     f"rfid: {animal} "
-                    f"touch_x: {touch_x} "
-                    f"touch_y: {touch_y} "
+                    f"touch_x_px: {t_x_px} "
+                    f"touch_y_px: {t_y_px} "
+                    f"touch_x_ratio: {t_x_ratio} "
+                    f"touch_y_ratio: {t_y_ratio} "
                 )
 
     def waterpump_listener(self, event: DeviceEvent):
@@ -845,20 +859,12 @@ class Room:
 
         if "reward picked" in event.description:
             animal.add_reward_search(True)
-            logging.info(
-                f"[reward_search] room: {str(self)} "
-                f"rfid: {animal} "
-                f"find: reward"
-            )
+            logging.info(f"[reward_picked] room: {str(self)} rfid: {animal}")
             self.set_trial_state()
 
         if "animal in" in event.description:
             animal.add_reward_search(False)
-            logging.info(
-                f"[reward_search] room: {str(self)} "
-                f"rfid: {animal} "
-                f"find: nothing"
-            )
+            logging.info(f"[reward_search] room: {str(self)} rfid: {animal}")
 
     def get_all_devices(self) -> list[Any]:
         """Get all devices of the room in a list."""
@@ -888,20 +894,49 @@ class Room:
         self.init_room()
 
     def start_timer(
-        self, duration_sec: int, callback: Callable, *args, **kwargs
+        self,
+        duration_sec: int,
+        callback: Callable,
+        *args,
+        **kwargs,
     ):
         """Start a timer that will call the specified callback after the given
-        duration (*in seconds*)."""
-        self.running_timers.append(
-            Timer(duration_sec, callback, *args, **kwargs)
-        )
-        self.running_timers[-1].start()
+        duration *(in seconds)*.
+
+        The callback only runs if no `cancel_all_timers()` happened since it
+        was scheduled. This guards against the `Timer.cancel()` race: if the
+        timer's delay already elapsed and its callback started running right
+        as `cancel_all_timers()` is called, `cancel()` has no effect and the
+        callback would otherwise still fire on stale room state.
+        """
+        with self.timers_lock:
+            generation = self.timer_generation
+            self.timers_running = [
+                timer for timer in self.timers_running if timer.is_alive()
+            ]
+
+        def guarded_callback():
+            with self.timers_lock:
+                if generation != self.timer_generation:
+                    return  # stale: room moved to another state, skip
+            callback(*args, **kwargs)
+
+        timer = Timer(duration_sec, guarded_callback)
+        timer.daemon = True
+        with self.timers_lock:
+            self.timers_running.append(timer)
+        timer.start()
 
     def cancel_all_timers(self):
-        """Cancel all running timers."""
-        for timer in self.running_timers:
-            timer.cancel()
-        self.running_timers = []
+        """Cancel all running timers and invalidate any pending callbacks."""
+        with self.timers_lock:
+            self.timer_generation += 1
+            for timer in self.timers_running:
+                try:
+                    timer.cancel()
+                except Exception:
+                    logging.exception("Failed to cancel timer")
+            self.timers_running = []
 
     def ts_display(self, left_img: TSImage, right_img: TSImage):
         """Displays images on left and right side."""
@@ -1074,6 +1109,7 @@ class Room:
         """Grab the phase of animal. Update room depending on animal phase
         (basically the state where the mouse have a trial set up).
         """
+        self.cancel_all_timers()
         if self.expe_data_saver:
             self.expe_data_saver(True, False)
 
@@ -1417,24 +1453,20 @@ class VisualDiscriminationExperiment:
         """Function called by the gates when they fire an event."""
         logging.debug(f"[gate_event] event: {event.description} ")
         # get room and device corresponding to event
-        device_name = event.deviceObject.name  # type: ignore
-        room = self.get_room(name=device_name)
 
+        device_name = getattr(event.deviceObject, "name", None)
+        room = self.get_room(name=device_name)
         if room is None:
             return
 
         room_side = "UNKNOWN"
+        home_side = "UNKNOWN"
         if room.gate.order == GateOrder.ONLY_ONE_ANIMAL_IN_B:
             room_side = "B"
+            home_side = "A"
         if room.gate.order == GateOrder.ONLY_ONE_ANIMAL_IN_A:
             room_side = "A"
-
-        if room_side == "A":
             home_side = "B"
-        elif room_side == "B":
-            home_side = "A"
-        else:
-            home_side = "UNKNOWN"
 
         # Animal weight
         # ----------------
@@ -1446,6 +1478,12 @@ class VisualDiscriminationExperiment:
                 f"rfid: {room.animal_in} "
                 f"weight_(g): {weight} "
             )
+
+        # Animal out
+        # ----------------
+        if f"FREE TO GET TO SIDE {home_side}" in event.description:
+            room.set_exit_state()
+            return
 
         # Animal in
         # ----------------
@@ -1465,14 +1503,3 @@ class VisualDiscriminationExperiment:
                 f"rfid: NOT_FOUND "
             )
             return
-
-        # Animal out
-        # ----------------
-        if f"FREE TO GET TO SIDE {home_side}" in event.description:
-            room.set_exit_state()
-            return
-
-        # Animal info
-        # ----------------
-        # reading time ?
-        # animal weight ?
