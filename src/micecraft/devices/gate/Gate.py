@@ -318,6 +318,8 @@ class Gate(object):
 
         self.chronoPlayLogic = datetime.now()
 
+        print('Gate init.. step 1')
+
         try:
             self.motorManager = MotorManager( COM_Servo )
         
@@ -326,10 +328,14 @@ class Gate(object):
             self.shutdown()
             quit()
          
-        
+        print('Gate init.. step 2')
         
         self.doorA = Door( Ax12Motor(1, self.motorManager) , "A "+name , enableLIDAR )
-        self.doorB = Door( Ax12Motor(2, self.motorManager) , "B "+name , enableLIDAR )                    
+        print("Door init A ended")
+        self.doorB = Door( Ax12Motor(2, self.motorManager) , "B "+name , enableLIDAR )
+        print("Door init B ended")                    
+        
+        print('Gate init.. step 3')
         
         
         if COM_Arduino!=None:
@@ -964,7 +970,10 @@ class Gate(object):
                 return True
         return False 
     
-    def setOrder (self, order, noOrderAtEnd=False, options=[] ):
+    def setOrder (self, order, noOrderAtEnd=False, options=None ):
+        
+        if options == None:
+            options = []
         
         if self.stopped:
             logging.info("setOrder error: The gate is in stopped state.")

@@ -75,6 +75,7 @@ class MotorManager:
         print(f"MotorManager {comPort} step 5")
 
         self.motorThreadLock = threading.Lock()
+        print(f"MotorManager {comPort} step 6")
         
         
     def check_error(self, comm_result, dxl_err , nbAttempts ):

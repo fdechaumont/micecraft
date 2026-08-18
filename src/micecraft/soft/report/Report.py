@@ -19,7 +19,7 @@ env = Environment(loader=FileSystemLoader(current_directory))
 
 class Report(object):
 
-    def __init__(self , title, data, template="contentCard.html", experimentName="experiment",  style = "primary", options= {} ):
+    def __init__(self , title, data, template="contentCard.html", experimentName="main",  style = "primary", options= None, downloadableContent=None ):
         
         self.title = title
         self.data = data
@@ -27,8 +27,14 @@ class Report(object):
         self.experimentName = experimentName
         self.style = style # can be: primary, success, danger, warning
         self._errorLevel = 0 # override the style if different from 0. 1: warning, 2:danger
+
+        if options == None:
+            options = {}        
         self.options = options
-        self.downloadableContent = {} # to add dataframe or files that will be available for download. Key is the name of the link on the webpage. 
+        
+        if downloadableContent == None:
+            downloadableContent = {}
+        self.downloadableContent = downloadableContent # to add dataframe or files that will be available for download. Key is the name of the link on the webpage. 
     
     def __str__(self, *args, **kwargs):
         return f"Report {self.title} - {self.experimentName}"
@@ -38,6 +44,7 @@ class Report(object):
         content supports dataframe
         '''
         self.downloadableContent[name] = content 
+        
     
     def setErrorLevel( self, errorLevel ):
         self._errorLevel = errorLevel
@@ -79,14 +86,14 @@ class Report(object):
             print(f"Xlsx file is : {fileNameXLS}")
             render = env.get_template( self.template ).render( title=numberInTitle+self.title, content=self.data, fileNameXLS=fileNameXLS, style=self.style, **self.options )
             
-            
             return render
         
         # add extra content
         extraDownloadContent =""
         
         for k,v in self.downloadableContent.items():            
-            if isinstance(v, pd.DataFrame):                
+            if isinstance(v, pd.DataFrame):
+                           
                 df = v
                 s = f"{self.experimentName} {self.title} {k}"
                 s = clean_filename( s )
@@ -94,8 +101,11 @@ class Report(object):
                 df.to_excel( f"{outFolder}/{fileNameXLS}" )
                 print(f"Xlsx file is : {fileNameXLS}")
                 extraDownloadContent+=f"<a href='{fileNameXLS}' >{k}</a><br>"
+            
             else:
+            
                 print(f"Report rendering, downloadableContent: Can't process data of type {type(v)}")
+                
                 print( v )
                 quit()
         

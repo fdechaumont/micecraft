@@ -19,6 +19,7 @@ from PyQt6.QtGui import QPainter, QPaintEvent
 
 from PyQt6.QtCore import Qt
 from micecraft.devices.gate.gui.WGate import WGate
+from micecraft.devices.gate.Gate import Gate
 
 class WVisualExperimentGateInGUI(QWidget):
     
@@ -72,6 +73,10 @@ class WVisualExperimentGateInGUI(QWidget):
 
         gate = WGate( 1 , 0 , self )
         
+        # set your gate here
+        g = Gate( COM_Servo="COM6", COM_Arduino="COM4", COM_RFID="COM3" )
+        gate.bindToGate( g )
+        
         self.resize(800,400)
         self.setWindowTitle( "MiceCraft - Gate display test" )
                 
@@ -109,6 +114,7 @@ if __name__ == "__main__":
         
     
     app = QApplication([])
+    
     
     app.aboutToQuit.connect(exitHandler)
     visualExperiment = WVisualExperimentGateInGUI()

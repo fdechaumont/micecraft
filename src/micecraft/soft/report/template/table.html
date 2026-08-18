@@ -34,9 +34,9 @@
             <tbody>
                 
                 {% for index, row in content.iterrows() %}    
-            	<tr>
-            	{% for i in range( row|length ) %}
-                <td>{{ row[i] }}</td>                
+            	<tr>            	
+            	{% for i in row %}
+                <td>{{i}}</td>                
                 {% endfor %}
                 </tr>
                 {% endfor %}

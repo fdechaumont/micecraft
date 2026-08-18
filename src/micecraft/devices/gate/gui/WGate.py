@@ -460,6 +460,7 @@ class WGate(WBlock):
     
     def updateGateInfo(self):
         
+        
         self.gate.lock.acquire()
         self.G_CurrentWeight = self.gate.currentWeight
         self.G_CurrentOrder = self.gate.getOrder()
@@ -473,6 +474,8 @@ class WGate(WBlock):
         self.G_LidarExtB = self.gate.doorB.getLidarExt( )
         self.G_LidarInB = self.gate.doorB.getLidarIn( )
         self.G_enableLidar = self.gate.enableLIDAR
+        
+        
                 
 
         self.gate.lock.release()
