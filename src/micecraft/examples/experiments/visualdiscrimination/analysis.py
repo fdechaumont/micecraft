@@ -10,7 +10,7 @@ underlying code.
 @author: xmousset
 """
 
-# pyinstaller --onefile --icon=res/visualdiscrimination_icon.png --add-data "res/visualdiscrimination_icon.png;res" --add-data "src/micecraft/examples/report/template;res/template" --add-data "src/micecraft/examples/report/assets;res/assets" --add-data "src/micecraft/examples/experiments/visualdiscrimination;visualdiscrimination" src/micecraft/examples/experiments/visualdiscrimination/analysis.py
+# pyinstaller --onefile --add-data "src/micecraft/examples/report/template;res/template" --add-data "src/micecraft/examples/report/assets;res/assets" --add-data "src/micecraft/examples/experiments/visualdiscrimination;visualdiscrimination" src/micecraft/examples/experiments/visualdiscrimination/analysis.py
 
 import os
 import sys
