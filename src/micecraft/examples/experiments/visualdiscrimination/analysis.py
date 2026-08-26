@@ -1,3 +1,17 @@
+"""
+Analysis module for the visual discrimination experiment. Just run the script
+to analyze the log file and generate a report. The analysis includes extracting
+relevant data from the log, processing it, and generating visualizations and
+statistics to summarize the experiment's outcomes. The module is designed to be
+run as a standalone script, providing an easy way to analyze the results of the
+visual discrimination experiment without needing to interact with the
+underlying code.
+
+@author: xmousset
+"""
+
+# pyinstaller --onefile --icon=res/visualdiscrimination_icon.png --add-data "res/visualdiscrimination_icon.png;res" --add-data "src/micecraft/examples/report/template;res/template" --add-data "src/micecraft/examples/report/assets;res/assets" --add-data "src/micecraft/examples/experiments/visualdiscrimination;visualdiscrimination" src/micecraft/examples/experiments/visualdiscrimination/analysis.py
+
 import os
 import sys
 import logging
@@ -7,7 +21,6 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.colors import sequential, qualitative
@@ -23,6 +36,8 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QDialogButtonBox,
     QVBoxLayout,
+    QHBoxLayout,
+    QGroupBox,
 )
 
 from micecraft.soft.report.LogFileMerger import LogFileMerger
@@ -30,6 +45,8 @@ from micecraft.examples.report.report_manager import HTMLReportManager
 
 DISCRETE_CLRS = qualitative.Bold[::-1]
 CONTINUOUS_CLRS = sequential.Plotly3
+
+logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
 
 class LogLineParser:
@@ -282,25 +299,31 @@ class LogAnalyzer(object):
             time_zero = parser.get_time()
         return time_zero
 
-    def to_csv(self) -> tuple[Path, Path, Path]:
+    def to_csv(self, output_path: Path) -> list[Path]:
         """Export the extracted data to csv files and return their paths as
         *(sensors, sessions, trials)*."""
-        folder_path = self.log_file.parent
-        file_name = str(self.log_file).strip(".txt").strip(".log")
+        # Build a safe file base name from the log file name (remove suffix)
+        file_name = self.log_file.name.replace(".log.txt", "")
 
         sensors_df = pd.DataFrame(self.sensors)
-        sensors_csv_path = folder_path / f"{file_name}.sensors.csv"
+        sensors_csv_path = output_path / f"{file_name}.sensors.csv"
         sensors_df.to_csv(sensors_csv_path, index=False)
 
         sessions_df = pd.DataFrame([s.as_dict() for s in self.sessions])
-        sessions_csv_path = folder_path / f"{file_name}.sessions.csv"
+        sessions_csv_path = output_path / f"{file_name}.sessions.csv"
         sessions_df.to_csv(sessions_csv_path, index=False)
 
         trials_df = pd.DataFrame([t.as_dict() for t in self.trials])
-        trials_csv_path = folder_path / f"{file_name}.trials.csv"
+        trials_csv_path = output_path / f"{file_name}.trials.csv"
         trials_df.to_csv(trials_csv_path, index=False)
 
-        return sensors_csv_path, sessions_csv_path, trials_csv_path
+        data = [
+            sensors_csv_path,
+            sessions_csv_path,
+            trials_csv_path,
+        ]
+
+        return data
 
     def process_log(self):
         """Process each line of log file and extract data."""
@@ -313,7 +336,7 @@ class LogAnalyzer(object):
             session: dict[str, SessionData] = {}
 
             lines = f.readlines()
-            for line in tqdm(lines, desc="Parsing log files"):
+            for line in lines:
 
                 # sort out irrelevant data
                 # ----------------
@@ -371,7 +394,7 @@ class LogAnalyzer(object):
                     room = parser.get_room()
                     weight = parser.get_info("weight_(g)")
                     if weight is None:
-                        tqdm.write(
+                        logging.error(
                             "Animal weight reading error in log:\n"
                             f"{parser.log_line}"
                         )
@@ -392,7 +415,7 @@ class LogAnalyzer(object):
                     room, _ = parser.separate_room_device(room_device)
 
                     if session[room].rfid is not None:
-                        tqdm.write(
+                        logging.error(
                             "RFID read while in session in log:\n "
                             f"{parser.log_line}"
                         )
@@ -413,7 +436,10 @@ class LogAnalyzer(object):
                 if parser.get_log() == "application started":
                     for room in session.keys():
                         if session[room].rfid is not None:
-                            tqdm.write("Application restarted during session.")
+                            logging.debug(
+                                "Application restarted during session: "
+                                f"{parser.log_line}"
+                            )
 
                             if (
                                 trial[room].current_state
@@ -429,7 +455,10 @@ class LogAnalyzer(object):
                             room in trial
                             and trial[room].current_state != "UNKNOWN"
                         ):
-                            tqdm.write("Application restarted during trial.")
+                            logging.debug(
+                                "Application restarted during trial: "
+                                f"{parser.log_line}"
+                            )
                             self.trials.append(trial.pop(room))
                     continue
 
@@ -452,7 +481,7 @@ class LogAnalyzer(object):
                     room = parser.get_room()
 
                     if session[room].rfid is not None:
-                        tqdm.write(
+                        logging.error(
                             "Animal entered while in session in log:\n "
                             f"{parser.log_line}"
                         )
@@ -475,7 +504,7 @@ class LogAnalyzer(object):
 
                     state = parser.get_info("state")
                     if state is None:
-                        tqdm.write(
+                        logging.error(
                             "Unknown state in log:\n " f"{parser.log_line}"
                         )
                         continue
@@ -605,22 +634,38 @@ class LogAnalyzer(object):
                     trial[room].reward_collected = True
 
 
-def select_files(file_type: str) -> list[Path]:
-    """Open a dialog to select at least one file of the specified type."""
-    file_type = file_type.strip(".").lower()
+def extract_name_from_path(file_path: Path) -> str:
+    """Remove everything after the first '-'. All '-' are replaced by '_' in
+    experiment name."""
+    return file_path.stem.split("-")[0]
+
+
+def select_files(file_type: str) -> dict[str, list[Path]] | None:
+    """Open a dialog to select at least one file of the specified type.
+    Returns a tuple containing a dictionary mapping experiment names to lists
+    of file paths and the parent directory of the first selected file."""
+    file_type = file_type.lower()
     while True:
         files, _ = QFileDialog.getOpenFileNames(
             None,
-            f"Select {file_type.upper()} files",
+            f"Select {file_type.lower()} files",
             str(Path.home()),
-            f"{file_type.upper()} files (*.{file_type});;All files (*)",
+            f"{file_type.lower()} files (*{file_type});;All files (*)",
         )
         if not files:
-            sys.exit(0)
+            return None
 
-        files_list = [Path(f) for f in files if f.endswith(f".{file_type}")]
-        if files_list:
-            return files_list
+        file_paths = [Path(f) for f in files if f.endswith(f"{file_type}")]
+        if file_paths:
+            exp_names: set[str] = set()
+            grouped_paths: dict[str, list[Path]] = {}
+            for f in file_paths:
+                exp_name = extract_name_from_path(f)
+                exp_names.add(exp_name)
+                if exp_name not in grouped_paths:
+                    grouped_paths[exp_name] = []
+                grouped_paths[exp_name].append(f)
+            return grouped_paths
 
         QMessageBox.warning(
             None,
@@ -632,18 +677,60 @@ def select_files(file_type: str) -> list[Path]:
         )
 
 
-def merge_logs(log_files: list[Path]) -> Path:
+def modify_and_rewrite_logfile(
+    file: Path,
+    replacement_rules: list[tuple[str, str, str]],
+) -> int:
+    """Modify lines in ``file`` according to replacement rules. The file is
+    rewritten only if at least one replacement occurs.
+
+    For each line in ``file``, the function iterates over the
+    ``replacement_rules`` list of tuples ``(line_check, old, new)``. If
+    ``line_check`` is present in a line and ``old`` is present in that
+    same line, all occurrences of ``old`` are replaced by ``new``.
+
+    Args:
+        file (Path): Path to the file to process.
+        replacement_rules (list[tuple[str, str, str]]): List of triples
+            ``(line_check, old, new)`` describing which lines to inspect
+            and which substrings to replace.
+
+    Returns:
+        int: Number of replacements performed.
+
+    Raises:
+        FileNotFoundError: If ``file`` does not exist.
+    """
+    if not file.exists():
+        raise FileNotFoundError(file)
+
+    text = file.read_text(encoding="utf-8", errors="ignore")
+    changes = 0
+    out_lines = []
+
+    for line in text.splitlines(keepends=True):
+        for line_check, old, new in replacement_rules:
+            if line_check in line and old in line:
+                line = line.replace(old, new)
+                changes += 1
+        out_lines.append(line)
+
+    if changes:
+        file.write_text("".join(out_lines), encoding="utf-8")
+
+    return changes
+
+
+def merge_logs(log_files: list[Path], output_path: Path) -> Path:
     """Merge the selected log files and return the path for log analysis."""
 
     if len(log_files) == 1:
         return log_files[0]
 
-    merged_path = log_files[0].parent / "merged"
+    merged_path = output_path
     merged_path.mkdir(exist_ok=True)
 
-    print("Start merging...")
     merger = LogFileMerger(log_files, str(merged_path) + os.sep)
-    print("Logs merged.")
 
     return Path(merger.mergedFiles[0])
 
@@ -815,76 +902,6 @@ def day_or_night(time, night_begin: int, night_duration: int):
     return "night" if hour in night_hours else "day"
 
 
-class AnalysisOptionDialog(QDialog):
-    """Dialog asking the user which analysis option to run."""
-
-    LOGS = 0
-    RAW_CSV = 1
-    PROCESSED_CSV = 2
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.setWindowTitle("Analysis options")
-        self.choice: int | None = None
-
-        layout = QVBoxLayout(self)
-        layout.addWidget(
-            QLabel("From which step do you want to start your analysis?")
-        )
-
-        for label, value in [
-            ("Log(s) file(s)", self.LOGS),
-            ("Original CSV file", self.RAW_CSV),
-            ("Computed CSV file", self.PROCESSED_CSV),
-        ]:
-            btn = QPushButton(label)
-            btn.clicked.connect(lambda _, v=value: self._select(v))
-            layout.addWidget(btn)
-
-    def _select(self, value: int) -> None:
-        self.choice = value
-        self.accept()
-
-
-class NightParametersDialog(QDialog):
-    """Ask user for night parameters: begin hour and duration (hours)."""
-
-    def __init__(
-        self, parent=None, default_begin: int = 20, default_duration: int = 12
-    ) -> None:
-        super().__init__(parent)
-        self.setWindowTitle("Night parameters")
-
-        self.night_begin_spin = QSpinBox(self)
-        self.night_begin_spin.setRange(0, 23)
-        self.night_begin_spin.setValue(default_begin)
-
-        self.night_duration_spin = QSpinBox(self)
-        self.night_duration_spin.setRange(0, 24)
-        self.night_duration_spin.setValue(default_duration)
-
-        form = QFormLayout()
-        form.addRow("Night begin (hour 0-23)", self.night_begin_spin)
-        form.addRow("Night duration (hours)", self.night_duration_spin)
-
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel,
-            parent=self,
-        )
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-
-        layout = QVBoxLayout(self)
-        layout.addLayout(form)
-        layout.addWidget(buttons)
-
-    def get_values(self) -> tuple[int, int]:
-        return int(self.night_begin_spin.value()), int(
-            self.night_duration_spin.value()
-        )
-
-
 def draw_nights(
     fig: go.Figure,
     start_time: pd.Timestamp,
@@ -980,7 +997,7 @@ def draw_phases(
             line_x = sessions[
                 (sessions["phase"] == phase) & (sessions["rfid"] == rfid)
             ][x_col].min()
-            if line_x is pd.NaT:
+            if pd.isna(line_x):
                 continue
             if orientation == "v":
                 fig.add_vline(
@@ -1051,7 +1068,8 @@ def insert_trials_report(
     night_duration: int,
 ):
 
-    pbar = tqdm(total=14, desc="Generating trials reports", unit="report")
+    # single top-level progress bar is provided by the action functions;
+    # internal steps run without their own tqdm to avoid multiple progress bars.
 
     trial_content = """
     <div style="width:80%; margin: 0 auto; text-align: center;">
@@ -1132,7 +1150,6 @@ def insert_trials_report(
 
     report_manager.add_title("Mice accuracy")
 
-    pbar.update(1)
     # =======================================
     title = "Accuracy over last 50 trials"
     # =======================================
@@ -1159,7 +1176,6 @@ def insert_trials_report(
         """
     report_manager.add_report(title, fig, top_note=explanations)
 
-    pbar.update(1)
     # =======================================
     title = "Superposed accuracy per trials - reversal start"
     # =======================================
@@ -1205,7 +1221,6 @@ def insert_trials_report(
         """
     report_manager.add_report(title, fig, top_note=explanations)
 
-    pbar.update(1)
     # =======================================
     title = "Accuracy over last 50 trials (time axis)"
     # =======================================
@@ -1240,7 +1255,6 @@ def insert_trials_report(
         """
     report_manager.add_report(title, fig, top_note=explanations)
 
-    pbar.update(1)
     # =======================================
     title = "Trials per hour of the day"
     # =======================================
@@ -1290,7 +1304,6 @@ def insert_trials_report(
         top_note=explanations,
     )
 
-    pbar.update(1)
     # =======================================
     title = "Test zone occupancy"
     # =======================================
@@ -1340,7 +1353,6 @@ def insert_trials_report(
         """
     report_manager.add_report(title, fig, top_note=explanations)
 
-    pbar.update(1)
     # =======================================
     title = "Cumulative reward delivered and taken"
     # =======================================
@@ -1373,7 +1385,6 @@ def insert_trials_report(
         """
     report_manager.add_report(title, fig, top_note=explanations)
 
-    pbar.update(1)
     # =======================================
     title = "Cumulative reward loss"
     # =======================================
@@ -1407,7 +1418,6 @@ def insert_trials_report(
         """
     report_manager.add_report(title, fig, top_note=explanations)
 
-    pbar.update(1)
     # =======================================
     title = "Cumulative left or right touch (-1 for left, +1 for right)"
     # =======================================
@@ -1438,7 +1448,6 @@ def insert_trials_report(
         """
     report_manager.add_report(title, fig, top_note=explanations)
 
-    pbar.update(1)
     # =======================================
     title = "Attempts for RFID reading"
     # =======================================
@@ -1477,7 +1486,6 @@ def insert_trials_report(
         """
     report_manager.add_report(title, fig, top_note=explanations)
 
-    pbar.update(1)
     # =======================================
     title = "XY touch positions"
     # =======================================
@@ -1507,7 +1515,6 @@ def insert_trials_report(
 
     report_manager.add_title("Mice efficiency and behavior")
 
-    pbar.update(1)
     # =======================================
     title = "Successful touch in a row"
     # =======================================
@@ -1558,7 +1565,6 @@ def insert_trials_report(
         top_note=explanations,
     )
 
-    pbar.update(1)
     # =======================================
     title = "Failed touch in a row"
     # =======================================
@@ -1611,7 +1617,6 @@ def insert_trials_report(
         top_note=explanations,
     )
 
-    pbar.update(1)
     # =======================================
     title = "Time before picking reward"
     # =======================================
@@ -1646,7 +1651,6 @@ def insert_trials_report(
         """
     report_manager.add_report(title, fig, top_note=explanations)
 
-    pbar.update(1)
     # =======================================
     title = "Animal weights during experiment"
     # =======================================
@@ -1699,6 +1703,12 @@ def insert_sensors_report(
     night_duration : int
         The duration of the night period in hour.
     """
+    if df.empty:
+        explanations = """
+            No sensors data available.
+            """
+        report_manager.add_title("Sensors data", content=explanations)
+        return
 
     explanations = """
         Overview of the sensors data collected during the experiment. Light and
@@ -1772,200 +1782,476 @@ def insert_sensors_report(
     #######################################
     report_manager.add_table_headers(name="Sensors table", df=df)
 
-    return report_manager
+
+def action_logs_to_merged():
+    exp_logs = select_files(".log.txt")
+    if exp_logs is None:
+        return
+
+    output_path = list(exp_logs.values())[0][0].parent.parent
+
+    n = 0
+    output_data: dict[str, list[Path]] = {}
+    for exp_name, file_list in exp_logs.items():
+        out_file = merge_logs(file_list, output_path)
+        output_data[exp_name] = [out_file]
+        n += 1
+        logging.info(f"logs -> merged: {exp_name}")
+    logging.info("logs -> merged: done")
+
+    return output_data
 
 
-if __name__ == "__main__":
+def action_merged_to_raw_csv(
+    merged_paths: dict[str, list[Path]] | None = None,
+):
+    if merged_paths is None:
+        merged_paths = select_files("-merged.log.txt")
+        if merged_paths is None:
+            return
 
-    app = QApplication(sys.argv)
+    output_path = list(merged_paths.values())[0][0].parent / "raw_csv"
+    output_path.mkdir(exist_ok=True, parents=True)
 
-    # Ask which analysis to run
-    # ----------------
-    dialog = AnalysisOptionDialog()
-    exit = False
-    if not dialog.exec():
-        sys.exit(0)
-
-    option = dialog.choice
-    if option is None:
-        QMessageBox.warning(
-            None,
-            "Bug in option selection",
-            (
-                "A bug occurred in the option selection dialog. "
-                "Please try again or contact support."
-            ),
-        )
-        sys.exit(0)
-
-    if option <= AnalysisOptionDialog.LOGS:
-        logging.info(
-            f"Analysis option selected: {option} - One or multiple logs files"
-        )
-
-        # Load and merge logs
-        # ----------------
-        log_files = select_files(".log.txt")
-        merged_file = merge_logs(log_files)
-
-        # Create csv files
-        # ----------------
-        if merged_file is not None:
-            extractor = LogAnalyzer(merged_file)
-            extractor.process_log()
-            sensors_path, sessions_path, trials_path = extractor.to_csv()
-        else:
+    n = 0
+    output_data: dict[str, list[Path]] = {}
+    for exp_name, path_list in merged_paths.items():
+        if len(path_list) > 1:
             QMessageBox.warning(
                 None,
-                "No log files selected",
+                "Multiple merged logs found",
                 (
-                    "No log files were selected for analysis. "
-                    "Please select at least one log file."
+                    f"Multiple merged logs found for {exp_name}. "
+                    "Only the first one will be processed."
                 ),
             )
-            sys.exit(0)
+        extractor = LogAnalyzer(path_list[0])
+        extractor.process_log()
+        output_data[exp_name] = extractor.to_csv(output_path)
+        n += 1
+        logging.info(f"merged -> raw: {exp_name}")
+    logging.info("merged -> raw: done")
 
-    else:
-        # Load csv files
-        # ----------------
-        csv_files = select_files(".csv")
-        sensors_path, sessions_path, trials_path = None, None, None
+    return output_data
 
-        for f in csv_files:
-            if f.name.endswith(".sensors.csv"):
-                sensors_path = f
-            if f.name.endswith(".sessions.csv"):
-                sessions_path = f
-            if f.name.endswith(".trials.csv"):
-                trials_path = f
 
-        if (
-            sensors_path is None
-            or sessions_path is None
-            or trials_path is None
-        ):
-            QMessageBox.warning(
-                None,
-                "Missing CSV files",
-                (
-                    "Please select all three CSV files (sensors, sessions and "
-                    "trials) to run the analysis from CSV files."
-                ),
-            )
-            sys.exit(0)
+def action_raw_to_processed_csv(
+    night_settings: tuple[int, int],
+    csv_grouped: dict[str, list[Path]] | None = None,
+):
+    if csv_grouped is None:
+        csv_grouped = select_files(".csv")
+        if csv_grouped is None:
+            return
 
-    # sensors_df = pd.read_csv(sensors_path, parse_dates=["time"])
-    sessions_df = pd.read_csv(
-        sessions_path,
-        parse_dates=["start_time", "end_time"],
-        dtype={"rfid": str},
+    output_path = (
+        list(csv_grouped.values())[0][0].parent.parent / "processed_csv"
     )
-    trials_df = pd.read_csv(trials_path, parse_dates=["trial_time"])
+    output_path.mkdir(exist_ok=True, parents=True)
 
-    # ask user for night parameters (beginning hour and duration)
-    night_dialog = NightParametersDialog()
-    if not night_dialog.exec():
-        night_begin, night_duration = 20, 12
-    else:
-        night_begin, night_duration = night_dialog.get_values()
+    # Group the CSV files by experiment and type (sensors, sessions, trials)
+    exp_csvs: dict[str, dict[str, Path]] = {}
+    for exp_name, paths in csv_grouped.items():
+        d: dict[str, Path] = {}
+        for p in paths:
+            if p.name.endswith(".sensors.csv"):
+                d["sensors"] = p
+            elif p.name.endswith(".sessions.csv"):
+                d["sessions"] = p
+            elif p.name.endswith(".trials.csv"):
+                d["trials"] = p
+        exp_csvs[exp_name] = d
 
-    if option <= AnalysisOptionDialog.RAW_CSV:
+    # Process each experiment
+    output_data: dict[str, list[Path]] = {}
+    for exp_name, paths in exp_csvs.items():
+        sensors_p = paths["sensors"]
+        sessions_p = paths["sessions"]
+        trials_p = paths["trials"]
+        if sensors_p is None or sessions_p is None or trials_p is None:
+            logging.warning("Skipping %s: missing CSVs", exp_name)
+            continue
 
-        # Merge session information (rfid, phase) into the trials dataframe
-        # Keep only trials that have a matching session (inner join)
+        try:
+            sensors_df = pd.read_csv(sensors_p, parse_dates=["time"])
+        except pd.errors.EmptyDataError:
+            sensors_df = pd.DataFrame()
+
+        sessions_df = pd.read_csv(
+            sessions_p,
+            parse_dates=["start_time", "end_time"],
+            dtype={"rfid": str},
+        )
+        trials_df = pd.read_csv(
+            trials_p, parse_dates=["trial_time"], dtype={"rfid": str}
+        )
+
+        # compute processed fields
         trials_df = trials_df.merge(
             sessions_df[["session_id", "rfid", "phase"]],
             on="session_id",
             how="inner",
         )
-
-        # ================ TRIALS ================
-
-        # cumulatives
         trials_df["cumul_reward_collected"] = get_cumulative(
-            trials_df,
-            on_col="reward_collected",
-            fill_na=False,
+            trials_df, on_col="reward_collected", fill_na=False
         )
-
         trials_df["cumul_reward_delivered"] = get_cumulative(
             trials_df,
             on_col="reward_collected",
             map_arg={True: True, False: True},
             fill_na=False,
         )
-
         trials_df["cumul_reward_lossed"] = (
             trials_df["cumul_reward_delivered"]
             - trials_df["cumul_reward_collected"]
         )
-
         trials_df["cumul_choice"] = get_cumulative(
             trials_df,
             on_col="touch_left",
             map_arg={True: -1, False: 1},
             fill_na=0,
         )
-
         trials_df["cumul_trials_total"] = get_cumulative(
             trials_df,
             on_col="trial_result",
             map_arg={True: True, False: True},
             fill_na=False,
         )
-
         trials_df["cumul_trials_result"] = get_cumulative(
             trials_df,
             on_col="trial_result",
             map_arg={True: +1, False: -1},
             fill_na=False,
         )
-
-        # streaks
         trials_df["success_in_a_row"] = get_streak(
             trials_df, col_name="trial_result", counted_value=True
         )
-
         trials_df["fail_in_a_row"] = get_streak(
             trials_df, col_name="trial_result", counted_value=False
         )
-
-        # accuracy
         trials_df[f"accuracy_50"] = get_accuracy(
             trials_df, on_col="trial_result", window=50
         )
-
         trials_df["y_touch_corrected"] = (
             trials_df["y_touch"].max() - trials_df["y_touch"]
         )
-
-        # others
         trials_df["hour"] = trials_df["trial_time"].dt.hour
         trials_df["day"] = trials_df["trial_time"].dt.date
         trials_df["day_or_night"] = trials_df["trial_time"].apply(
-            day_or_night, args=(night_begin, night_duration)
+            day_or_night, args=night_settings
         )
 
-        # ================ SAVE ================
-        name = trials_path.name.replace(".trials.csv", "_processed.trials.csv")
-        trials_df.to_csv(trials_path.parent / name, index=False)
+        # Save processed csvs under processed_csv folder
+        sensors_out = output_path / sensors_p.name.replace(
+            ".sensors.csv", "_processed.sensors.csv"
+        )
+        trials_out = output_path / trials_p.name.replace(
+            ".trials.csv", "_processed.trials.csv"
+        )
+        sessions_out = output_path / sessions_p.name.replace(
+            ".sessions.csv", "_processed.sessions.csv"
+        )
+        sensors_df.to_csv(sensors_out, index=False)
+        trials_df.to_csv(trials_out, index=False)
+        sessions_df.to_csv(sessions_out, index=False)
+
+        output_data[exp_name] = [sensors_out, trials_out, sessions_out]
+
+        logging.info(f"raw -> processed: {exp_name}")
+    logging.info("raw -> processed: done")
+
+    return output_data
+
+
+def action_processed_csv_to_report(
+    night_settings: tuple[int, int],
+    csv_grouped: dict[str, list[Path]] | None = None,
+):
+    if csv_grouped is None:
+        csv_grouped = select_files(".csv")
+        if csv_grouped is None:
+            return
+
+    output_path = list(csv_grouped.values())[0][0].parent.parent / "report"
+    output_path.mkdir(exist_ok=True, parents=True)
+
+    exp_csvs: dict[str, dict[str, Path]] = {}
+
+    for exp_name, paths in csv_grouped.items():
+        d: dict[str, Path] = {}
+        for p in paths:
+            if p.name.endswith("_processed.sensors.csv"):
+                d["sensors"] = p
+            elif p.name.endswith("_processed.sessions.csv"):
+                d["sessions"] = p
+            elif p.name.endswith("_processed.trials.csv"):
+                d["trials"] = p
+        if "sensors" not in d or "sessions" not in d or "trials" not in d:
+            QMessageBox.warning(
+                None,
+                "Missing processed CSVs",
+                f"Skipping {exp_name}: missing processed CSVs",
+            )
+            continue
+        exp_csvs[exp_name] = d
 
     report_manager = HTMLReportManager()
-    report_manager.reports_creation_focus("TouchScreen Analysis")
-    report_manager = insert_trials_report(
-        report_manager,
-        trials_df,
-        sessions_df,
-        night_begin,
-        night_duration,
-    )
-    # report_manager = insert_sensors_report(
-    #     report_manager,
-    #     sensors_df,
-    #     night_begin,
-    #     night_duration,
-    # )
 
-    report_manager.generate_local_output(trials_path.parent / "Analysis")
+    for exp_name, paths in exp_csvs.items():
+        if not paths["trials"].exists() or not paths["sessions"].exists():
+            logging.warning("Skipping %s: missing sessions/trials", exp_name)
+            continue
 
-    report_manager.open_local_output(trials_path.parent / "Analysis")
+        try:
+            sensors_df = pd.read_csv(paths["sensors"], parse_dates=["time"])
+        except pd.errors.EmptyDataError:
+            sensors_df = pd.DataFrame()
+
+        sessions_df = pd.read_csv(
+            paths["sessions"],
+            parse_dates=["start_time", "end_time"],
+            dtype={"rfid": str},
+        )
+        trials_df = pd.read_csv(
+            paths["trials"], parse_dates=["trial_time"], dtype={"rfid": str}
+        )
+
+        report_manager.reports_creation_focus(exp_name)
+        insert_trials_report(
+            report_manager,
+            trials_df,
+            sessions_df,
+            night_settings[0],
+            night_settings[1],
+        )
+        insert_sensors_report(
+            report_manager,
+            sensors_df,
+            night_settings[0],
+            night_settings[1],
+        )
+
+        logging.info(f"processed -> report: {exp_name}")
+    logging.info("processed -> report: done")
+
+    report_manager.reports_creation_focus()
+    summary_content = """
+    <div style="width:80%; margin: 0 auto; text-align: center;">
+        <div style="margin-bottom:1em;">
+            This report summarizes the results of the visual discrimination
+            experiment. It includes data on the trials performed by the mice,
+            their accuracy, the number of successful and failed touches in a row,
+            the time taken to pick up rewards, and the weights of the mice during
+            the experiment. Additionally, it provides information on the sensors
+            data collected during the experiment, including temperature, pressure,
+            humidity, light, and sound levels.
+        </div>
+    </div>
+    """
+    report_manager.add_title("Experiment summary", content=summary_content)
+
+    report_manager.generate_local_output(output_path)
+    report_manager.open_local_output(output_path)
+
+
+class AnalysisOptionDialog(QDialog):
+    """Dialog asking the user which analysis option to run."""
+
+    # New dialog options: separate pipeline steps and an "all" shortcut
+    MERGE_LOGS = 0
+    MERGE_TO_RAW = 1
+    RAW_TO_PROCESSED = 2
+    PROCESSED_TO_REPORT = 3
+    ALL_STEPS_FROM_LOGS = 4
+    ALL_STEPS_FROM_MERGED = 5
+    SETTINGS_NIGHT = 10
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setWindowTitle("Analysis actions")
+        self.choice: int | None = None
+        # allow setting night parameters from the menu
+        self.night_settings: tuple[int, int] | None = None
+
+        # Main layout: label + two areas side-by-side
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(12)
+        main_layout.addWidget(QLabel("Choose the action to perform:"))
+
+        # Horizontal area: left = All steps, right = individual steps
+        h_layout = QHBoxLayout()
+
+        # Left group: All steps
+        all_group = QGroupBox("All Steps")
+        all_layout = QVBoxLayout()
+        btn_all_logs = QPushButton("Run from logs")
+        btn_all_logs.clicked.connect(
+            lambda: self._select(self.ALL_STEPS_FROM_LOGS)
+        )
+        all_layout.addWidget(btn_all_logs)
+
+        btn_all_merged = QPushButton("Run from merged")
+        btn_all_merged.clicked.connect(
+            lambda: self._select(self.ALL_STEPS_FROM_MERGED)
+        )
+        all_layout.addWidget(btn_all_merged)
+        all_group.setLayout(all_layout)
+
+        # Right group: individual pipeline steps
+        steps_group = QGroupBox("Pipeline steps")
+        steps_layout = QVBoxLayout()
+
+        buttons = [
+            ("Merge logs file", self.MERGE_LOGS),
+            ("Create raw CSV from merged logs", self.MERGE_TO_RAW),
+            ("Process CSV from raw", self.RAW_TO_PROCESSED),
+            ("Generate report from processed CSV", self.PROCESSED_TO_REPORT),
+        ]
+
+        for label, value in buttons:
+            btn = QPushButton(label)
+            btn.clicked.connect(lambda _, v=value: self._select(v))
+            steps_layout.addWidget(btn)
+
+        steps_group.setLayout(steps_layout)
+
+        h_layout.addWidget(all_group, 1)
+        h_layout.addWidget(steps_group, 2)
+
+        main_layout.addLayout(h_layout)
+
+        # Settings group below the steps
+        settings_group = QGroupBox("Settings")
+        settings_layout = QVBoxLayout()
+        btn_night = QPushButton("Night settings")
+        btn_night.clicked.connect(lambda: self._select(self.SETTINGS_NIGHT))
+        settings_layout.addWidget(btn_night)
+        settings_group.setLayout(settings_layout)
+
+        main_layout.addWidget(settings_group)
+
+    def _select(self, value: int) -> None:
+        self.choice = value
+        self.accept()
+
+    def _open_night_parameters(self) -> None:
+        """Open the NightParametersDialog and store the chosen settings."""
+        dlg = NightParametersDialog(self)
+        if dlg.exec():
+            self.night_settings = dlg.get_values()
+
+
+class NightParametersDialog(QDialog):
+    """Ask user for night parameters: begin hour and duration (hours)."""
+
+    def __init__(
+        self, parent=None, default_begin: int = 20, default_duration: int = 12
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Night parameters")
+
+        self.night_begin_spin = QSpinBox(self)
+        self.night_begin_spin.setRange(0, 23)
+        self.night_begin_spin.setValue(default_begin)
+
+        self.night_duration_spin = QSpinBox(self)
+        self.night_duration_spin.setRange(0, 24)
+        self.night_duration_spin.setValue(default_duration)
+
+        form = QFormLayout()
+        form.addRow("Night begin (hour 0-23)", self.night_begin_spin)
+        form.addRow("Night duration (hours)", self.night_duration_spin)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel,
+            parent=self,
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+
+        layout = QVBoxLayout(self)
+        layout.addLayout(form)
+        layout.addWidget(buttons)
+
+    def get_values(self) -> tuple[int, int]:
+        return int(self.night_begin_spin.value()), int(
+            self.night_duration_spin.value()
+        )
+
+
+def get_night_settings() -> tuple[int, int]:
+    """Open a dialog to get night settings from the user. Returns a tuple of
+    (night_begin, night_duration)."""
+    default = (20, 12)
+
+    night_dialog = NightParametersDialog()
+    if not night_dialog.exec():
+        night_begin, night_duration = default
+    else:
+        night_begin, night_duration = night_dialog.get_values()
+    return night_begin, night_duration
+
+
+if __name__ == "__main__":
+
+    app = QApplication(sys.argv)
+
+    night_settings = None
+
+    while True:
+        dialog = AnalysisOptionDialog()
+        if not dialog.exec():
+            break
+
+        action = dialog.choice
+        if action is None:
+            QMessageBox.warning(
+                None, "No action selected", "Please select an action."
+            )
+            continue
+
+        if action == AnalysisOptionDialog.MERGE_LOGS:
+            action_logs_to_merged()
+
+        if action == AnalysisOptionDialog.MERGE_TO_RAW:
+            action_merged_to_raw_csv()
+
+        if action == AnalysisOptionDialog.RAW_TO_PROCESSED:
+            if night_settings is None:
+                night_settings = get_night_settings()
+            action_raw_to_processed_csv(night_settings)
+
+        if action == AnalysisOptionDialog.PROCESSED_TO_REPORT:
+            if night_settings is None:
+                night_settings = get_night_settings()
+            action_processed_csv_to_report(night_settings)
+
+        if action == AnalysisOptionDialog.ALL_STEPS_FROM_LOGS:
+            # Run the whole pipeline: merge -> raw csv -> processed -> report
+            data = action_logs_to_merged()
+            data = action_merged_to_raw_csv(data)
+            # Prefer night settings set in the dialog menu if any
+            if dialog.night_settings is not None:
+                night_settings = dialog.night_settings
+            if night_settings is None:
+                night_settings = get_night_settings()
+            data = action_raw_to_processed_csv(night_settings, data)
+            data = action_processed_csv_to_report(night_settings, data)
+
+        if action == AnalysisOptionDialog.ALL_STEPS_FROM_MERGED:
+            # Run the whole pipeline: raw csv -> processed -> report
+            data = action_merged_to_raw_csv()
+            # Prefer night settings set in the dialog menu if any
+            if dialog.night_settings is not None:
+                night_settings = dialog.night_settings
+            if night_settings is None:
+                night_settings = get_night_settings()
+            data = action_raw_to_processed_csv(night_settings, data)
+            data = action_processed_csv_to_report(night_settings, data)
+
+        if action == AnalysisOptionDialog.SETTINGS_NIGHT:
+            # Open the night parameters dialog and store the result
+            dlg = NightParametersDialog()
+            if dlg.exec():
+                night_settings = dlg.get_values()

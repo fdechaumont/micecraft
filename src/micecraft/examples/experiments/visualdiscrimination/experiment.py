@@ -5,7 +5,11 @@ structured in phases, with specific criteria for progression. The code includes
 classes for managing the experiment parameters, mouse data, and the experiment
 itself, as well as methods for handling hardware interactions and recording
 trial outcomes.
+
+@author: xmousset
 """
+
+from __future__ import annotations
 
 import os
 import sys

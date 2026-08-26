@@ -11,7 +11,11 @@ phase, changing the expected touchscreen image for an animal, or simulating
 touchscreen events. The visual representation of the animals is done using
 colored circles, and the application continuously updates to reflect changes in
 the experiment state.
+
+@author: xmousset
 """
+
+from __future__ import annotations
 
 import math
 import time
