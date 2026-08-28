@@ -2220,7 +2220,7 @@ def get_night_settings() -> tuple[int, int]:
     return night_begin, night_duration
 
 
-if __name__ == "__main__":
+def start_analysis():
 
     app = QApplication(sys.argv)
 
@@ -2282,3 +2282,7 @@ if __name__ == "__main__":
             dlg = NightParametersDialog()
             if dlg.exec():
                 night_settings = dlg.get_values()
+
+
+if __name__ == "__main__":
+    start_analysis()
