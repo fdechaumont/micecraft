@@ -1623,7 +1623,7 @@ def insert_trials_report(
     fig = px.scatter(
         tdf,
         "trial_time",
-        "SUCCESS_state_duration",
+        "SUCCESS_state_duration_s",
         color="rfid",
         marginal_x="histogram",
         marginal_y="histogram",
@@ -1783,6 +1783,16 @@ def insert_sensors_report(
     report_manager.add_table_headers(name="Sensors table", df=df)
 
 
+def convert_duration_columns_to_timedelta(df: pd.DataFrame):
+    """Convert any columns ending with '_duration' to pandas Timedelta"""
+    for col in list(df.columns):
+        if col.endswith("_duration"):
+            try:
+                df[col] = pd.to_timedelta(df[col], errors="coerce")
+            except Exception:
+                logging.debug(f"Could not convert column {col} to Timedelta")
+
+
 def action_logs_to_merged():
     exp_logs = select_files(".log.txt")
     if exp_logs is None:
@@ -1885,6 +1895,8 @@ def action_raw_to_processed_csv(
         trials_df = pd.read_csv(
             trials_p, parse_dates=["trial_time"], dtype={"rfid": str}
         )
+        for df in [sessions_df, trials_df]:
+            convert_duration_columns_to_timedelta(df)
 
         # compute processed fields
         trials_df = trials_df.merge(
@@ -1940,6 +1952,9 @@ def action_raw_to_processed_csv(
         trials_df["day_or_night"] = trials_df["trial_time"].apply(
             day_or_night, args=night_settings
         )
+        for col in list(trials_df.columns):
+            if col.endswith("_duration"):
+                trials_df[f"{col}_s"] = trials_df[col].dt.total_seconds()
 
         # Save processed csvs under processed_csv folder
         sensors_out = output_path / sensors_p.name.replace(
@@ -1995,7 +2010,19 @@ def action_processed_csv_to_report(
             continue
         exp_csvs[exp_name] = d
 
-    report_manager = HTMLReportManager()
+    report_folder = Path(__file__).parent.parent.parent / "report"
+
+    if getattr(sys, "frozen", False):
+        # different when used as .exe because PyInstaller use a temporary
+        # _MEIPASS folder
+        base = Path(getattr(sys, "_MEIPASS", Path.cwd()))
+        template_folder = base / "res" / "template"
+        assets_folder = base / "res" / "assets"
+    else:
+        template_folder = report_folder / "template"
+        assets_folder = report_folder / "assets"
+
+    report_manager = HTMLReportManager(template_folder, assets_folder)
 
     for exp_name, paths in exp_csvs.items():
         if not paths["trials"].exists() or not paths["sessions"].exists():

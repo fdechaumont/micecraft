@@ -41,7 +41,11 @@ class HTMLReportManager:
         else:
             webbrowser.open(str(output_folder / "index.html"))
 
-    def __init__(self):
+    def __init__(
+        self,
+        template_folder: Path | None = None,
+        assets_folder: Path | None = None,
+    ):
         """Initialize the HTMLReportManager."""
         self.reports = []
         self.exp_name = "main"
@@ -50,7 +54,18 @@ class HTMLReportManager:
             "include_plotlyjs": "cdn",
             "config": {"displaylogo": False},
         }
-        self.local_path = Path(__file__).parent.parent
+
+        default_path = Path(__file__).parent.parent / "report"
+
+        if template_folder is None:
+            self.template_folder = default_path / "template"
+        else:
+            self.template_folder = template_folder
+
+        if assets_folder is None:
+            self.assets_folder = default_path / "assets"
+        else:
+            self.assets_folder = assets_folder
 
     def reports_creation_focus(self, exp_name: str = "main"):
         """Define where the new reports will be added. The main page is
@@ -267,9 +282,9 @@ class HTMLReportManager:
         """Generate an HTML output locally from the accumulated reports."""
         output_folder.mkdir(parents=True, exist_ok=True)
         webSite = WebSite(
-            templateFolder=str(self.local_path / "report" / "template"),
+            templateFolder=str(self.template_folder),
             outFolder=str(output_folder.absolute()) + "/",
-            defaultWebSiteFolder=str(self.local_path / "report" / "assets"),
+            defaultWebSiteFolder=str(self.assets_folder),
             passFile="None",
         )
 
