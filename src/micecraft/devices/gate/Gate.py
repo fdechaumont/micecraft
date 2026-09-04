@@ -267,7 +267,7 @@ class Gate(object):
     A gate manage 2 doors
     '''
 
-    def __init__(self, COM_Servo=None, COM_Arduino=None, COM_RFID=None, name="noName gate" , weightFactor = 1 , mouseAverageWeight = 25, enableLIDAR = True , lidarPinOrder = None , gateMode = GateMode.MOUSE, invertScale = False ):        
+    def __init__(self, COM_Servo=None, COM_Arduino=None, COM_RFID=None, name="noName gate" , weightFactor = 1.0 , mouseAverageWeight = 25, enableLIDAR = True , lidarPinOrder = None , gateMode = GateMode.MOUSE, invertScale = False ):        
         
         print('Gate init..')
 
@@ -549,7 +549,7 @@ class Gate(object):
             
         command+=f" *{rfid}*"
         
-        print(f"Sending command to LMT at {ip} for RFID identity presence: {command}" )
+        logging.info(f"Sending command to LMT at {ip} for RFID identity presence: {command}" )
                 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
         sock.sendto(bytes( command  , "utf-8"), (UDP_IP, UDP_PORT))

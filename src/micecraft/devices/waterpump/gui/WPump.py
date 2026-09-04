@@ -31,7 +31,7 @@ class WPump(QtWidgets.QWidget):
         '''        
         layout = QtWidgets.QVBoxLayout()
         title = QLabel( "Fed" , objectName="balanceTitle" )
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget( title )
         self.balanceWidget = MplCanvas (self, width=5, height=3 )        
         self.balanceWidget.axes.plot([0,1,2,3,4], [10,1,20,3,40])
@@ -127,7 +127,7 @@ class WPump(QtWidgets.QWidget):
         font = QFont('Times', 10)
         font.setBold(True)
         painter.setFont( font )
-        painter.drawText( QRect( 0, 0 , 50,50 ), Qt.AlignCenter, self.name )
+        painter.drawText( QRect( 0, 0 , 50,50 ), Qt.AlignmentFlag.AlignCenter, self.name )
         
         if self.pump != None:
             self.visualDeviceAlarmStatus.draw( painter, self.pump,
@@ -158,7 +158,7 @@ class WPump(QtWidgets.QWidget):
         menu.addSeparator()
         simulateRewardPickedAction = menu.addAction("Simulate reward picked")
         
-        action = menu.exec_(self.mapToGlobal(event.pos()))
+        action = menu.exec(self.mapToGlobal(event.pos()))
         
         if self.pump == None:
             print("No action as there is no hardware device bound to this component")
@@ -206,14 +206,14 @@ class WPump(QtWidgets.QWidget):
     def mousePressEvent(self, event):
         self.__mousePressPos = None
         self.__mouseMovePos = None
-        if event.button() == QtCore.Qt.LeftButton:
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self.__mousePressPos = event.globalPos()
             self.__mouseMovePos = event.globalPos()
 
         super(WPump, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-        if event.buttons() == QtCore.Qt.LeftButton:
+        if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
             # adjust offset from clicked point to origin of widget
             currPos = self.mapToGlobal(self.pos())
             globalPos = event.globalPos()

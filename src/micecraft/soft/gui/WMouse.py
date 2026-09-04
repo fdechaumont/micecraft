@@ -6,23 +6,25 @@ Created on 14 mars 2023
 
 from PyQt6.QtGui import QPaintEvent, QPainter, QFont, QPen, QColor
 from PyQt6.QtCore import QRect, Qt
-from PyQt6 import *
-from PyQt6.QtWidgets import QWidget, QMenu
+from PyQt6 import QtCore, QtGui, QtWidgets
+
 
 class WMouse(QtWidgets.QWidget):
 
     
-    def __init__(self, x,y, *args, **kwargs ):
+    def __init__(self, x, y, *args, **kwargs ):
         super().__init__( *args, **kwargs )
-        self.x = x
-        self.y = y
+        self.x: float = x
+        self.y: float = y
         
         self.setGeometry( int(self.x), int(self.y), 125, 50 )
         self.name ="block"
-        self.rfid = None
+        self.rfid: str | None = None
         self.description = ""
         self.number = 0
         self.setBackgroundColor( 100, 100, 100 )
+        
+        self.vpos: dict[str, tuple[float, float]] = {}
     
     def setName(self , name ):
         self.name = name
@@ -55,11 +57,11 @@ class WMouse(QtWidgets.QWidget):
             txt="No RFID"
         if self.description !="":
             txt+="\n"+self.description
-        painter.drawText( QRect( 0,0,125,50) , Qt.AlignCenter, txt )
+        painter.drawText( QRect( 0,0,125,50) , Qt.AlignmentFlag.AlignCenter, txt )
 
-        painter.drawText( QRect( 5,5,20,10) , Qt.AlignCenter, str( self.number ) )
+        painter.drawText( QRect( 5,5,20,10) , Qt.AlignmentFlag.AlignCenter, str( self.number ) )
 
-        #painter.drawText( QRect( 0,20,125,50) , Qt.AlignCenter, self.description )
+        #painter.drawText( QRect( 0,20,125,50) , Qt.AlignmentFlag.AlignCenter, self.description )
 
         painter.end()
     
@@ -67,14 +69,14 @@ class WMouse(QtWidgets.QWidget):
     def mousePressEvent(self, event):
         self.__mousePressPos = None
         self.__mouseMovePos = None
-        if event.button() == QtCore.Qt.LeftButton:
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self.__mousePressPos = event.globalPos()
             self.__mouseMovePos = event.globalPos()
 
         super(WMouse, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-        if event.buttons() == QtCore.Qt.LeftButton:
+        if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
             # adjust offset from clicked point to origin of widget
             currPos = self.mapToGlobal(self.pos())
             globalPos = event.globalPos()

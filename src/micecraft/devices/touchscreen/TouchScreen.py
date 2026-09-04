@@ -51,7 +51,7 @@ class TouchScreen(object):
         #self.communicationThread = threading.Thread(target=self.communication , name = f"TouchScreen Thread - {self.comPort}")
         #self.communicationThread.start()
         
-        self.currentDisplay = {}
+        self.currentDisplay = []
         self.transparency = 255
         
         self.comManager = ComManager( comPort, self.comListener, "touchscreen com", 115200 )
@@ -290,26 +290,91 @@ class TouchScreen(object):
         
     def setImage(self , id , x , y ):
         d = f"setImage {id} {x} {y}"
-        self.currentDisplay[(x,y)] = id
+        self.currentDisplay.append({
+            "name": f"{x}_{y}",
+            "type": "tile",
+            "id": id,
+            "x": x,
+            "y": y,
+        })
         self.send( d )
         
     def removeImage(self , x , y ):
         d = f"removeImage {x} {y}"
-        if ( x, y ) in self.currentDisplay:
-            self.currentDisplay.pop( (x,y) )
+        name = f"{x}_{y}"
+        self.currentDisplay = [
+            img
+            for img in self.currentDisplay
+            if img["name"] != name
+        ]
         self.send( d )
         
     def setXYImage(self , name, id, centerX , centerY , rotation , scale ):
         name = name.replace(" ","_") # if the name contains space, replace it by underscore
         d = f"setXYImage {name} {id} {centerX} {centerY} {rotation} {scale}"
         self.log( d )
-        # todo: add local record of this to display it in the gui
+        self.currentDisplay.append({
+            "name": name,
+            "type": "xy",
+            "id": id,
+            "centerX": centerX,
+            "centerY": centerY,
+            "rotation": rotation,
+            "scale": scale
+        })
         self.send( d )
         
     def removeXYImage(self , name ):
         d = f"removeXYImage {name}"
         self.log( d )
-        # todo: add local record of this to display it in the gui
+        self.currentDisplay = [
+            img
+            for img in self.currentDisplay
+            if img["name"] != name
+        ]
+        self.send( d )
+    
+    def setXYStripesImage(
+        self,
+        name: str,
+        white: int,
+        black: int,
+        angle: float,
+        centerX: int,
+        centerY: int
+    ):
+        name = name.replace(" ","_") # if the name contains space, replace it by underscore
+        d = f"setXYStripesImage {name} {white} {black} {angle} {centerX} {centerY}"
+        self.log( d )
+        self.currentDisplay.append({
+            "name": name,
+            "type": "xy_stripes",
+            "white": white,
+            "black": black,
+            "angle": angle,
+            "centerX": centerX,
+            "centerY": centerY
+        })
+        self.send( d )
+    
+    def removeXYStripesImage(self, name: str):
+        d = f"removeXYStripesImage {name}"
+        self.log( d )
+        self.currentDisplay = [
+            img
+            for img in self.currentDisplay
+            if img["name"] != name
+        ]
+        self.send( d )
+    
+    def setBgStripes(self, white, black, angle):
+        d = f"setBgStripes {white} {black} {angle}"
+        self.log( d )
+        self.send( d )
+    
+    def removeBg(self):
+        d = f"removeBg"
+        self.log( d )
         self.send( d )
         
     def log(self, message ):
@@ -380,11 +445,11 @@ if __name__ == '__main__':
             #ts.setImage( randint(0,2), randint(1,ts.nbCols), randint(1,ts.nbRows) )
             
         print("Current display:")
-        for pos,id in ts.getCurrentImageList().items():
-            print ( f"{pos} : {id}"  )
+        for img in ts.getCurrentImageList():
+            print ( f"{img['name']} : {img['id']}"  )
         
     print("Starting touchScreen test.")
-    ts = TouchScreen( comPort="COM60" )
+    ts = TouchScreen( comPort="COM4" )
     ts.addDeviceListener(listener)
     ts.setConfig( 3, 1, 350 )
     ts.clear()
@@ -413,6 +478,8 @@ if __name__ == '__main__':
         print("0: tests")
         print("1: 2 image test with framing")
         print("l 3 2 350 : show a layout of 3 cols per 2 rows with 350 image size")        
+        print("i: set stripes pattern: i <angle> or i <white> <black> <angle>")
+        print("b: set background stripes pattern: b <angle> or b <white> <black> <angle>")
         a = input("command:")
         
         if a.startswith( "a" ):
@@ -432,7 +499,8 @@ if __name__ == '__main__':
             ts.crash()            
         
         if "c" in a:
-            ts.clear()            
+            ts.clear()
+            ts.removeBg()            
             
         if "s" in a:
             ts.setImage( randint(0,16), randint(1,ts.nbCols), randint(1,ts.nbRows) )
@@ -497,9 +565,34 @@ if __name__ == '__main__':
         if a.startswith("l"):
             d = a.split( " " )
             ts.setConfig( int( d[1] ) , int( d[2] ), int ( d[3] ) )
-            
-            
-            
+        
+        if a.startswith("b"):
+            d = a.split(" ")
+            if len(d) == 2:
+                angle = float(d[1])
+                ts.setBgStripes(33, 33, angle)
+            elif len(d) == 4:
+                white = int(d[1])
+                black = int(d[2])
+                angle = float(d[3])
+                ts.setBgStripes(white, black, angle)
+            else:
+                ts.setBgStripes(33, 33, randint(-90,90))
+        
+        if a.startswith("i"):
+            d = a.split(" ")
+            if len(d) == 2:
+                angle = float(d[1])
+                ts.setXYStripesImage( f"stripes{str(randint(0,1000))}" , 33, 33, angle, 300, 300 )
+            elif len(d) == 4:
+                white = int(d[1])
+                black = int(d[2])
+                angle = float(d[3])
+                ts.setXYStripesImage( f"stripes{str(randint(0,1000))}" , white, black, angle, 300, 300 )
+            else:
+                ts.setXYStripesImage( f"stripes{str(randint(0,1000))}" , 33, 33, randint(-90,90), 300, 300 )
+    
+    
     
     
     

@@ -81,18 +81,14 @@ class Alarm(object):
             
             if content == None:
                 content = subject
-                    
-            mail = Mail()                
-            mail.sendAlert(self.mails, subject, content, fileList )
+
             self.lastMailDateTime = datetime.now()
             self.alarmCount+=1
+
+            if sendMailOk and len(self.mails) > 0 and Mail.smtp_server_domain_name is not None:
+                mail = Mail()
+                mail.sendAlert(self.mails, subject, content, fileList )
         
         except Exception as e:
             logging.info(f"Exception in sendAlarmMail.")
             logging.info(e)
-            
-    
-        
-    
-    
-        

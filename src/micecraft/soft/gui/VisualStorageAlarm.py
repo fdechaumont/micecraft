@@ -38,7 +38,7 @@ class VisualStorageAlarm(object):
         font = QFont('Times', 8)
         painter.setFont( font )
                     
-        painter.drawText( textRect, Qt.AlignCenter, s )
+        painter.drawText( textRect, Qt.AlignmentFlag.AlignCenter, s )
 
         
         

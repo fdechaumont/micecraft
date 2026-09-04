@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QWidget, QPushButton, QLabel, QApplication, QMenuBar
 from PyQt6.QtGui import QPaintEvent, QFont, QPen, QColor, QPainter
 from PyQt6.QtCore import QRect, Qt
 
-from PyQt6 import *
+from PyQt6 import QtGui
 
 
 class VisualDeviceAlarmStatus(object):

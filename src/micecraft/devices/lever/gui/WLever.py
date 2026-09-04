@@ -96,7 +96,7 @@ class WLever(QWidget):
         font.setBold(True)
         painter.setPen(QtGui.QPen(QtGui.QColor(100,100,100), 4))
         painter.setFont( font )
-        painter.drawText( QRect( 0, 0 , 100,50 ), Qt.AlignCenter, self.name )
+        painter.drawText( QRect( 0, 0 , 100,50 ), Qt.AlignmentFlag.AlignCenter, self.name )
         
         painter.end()
 
