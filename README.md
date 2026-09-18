@@ -18,7 +18,7 @@ pip install micecraft
 
 ## Github
 
-[MiceCraft GitHub](https://github.org/micecraft)
+[MiceCraft GitHub](https://github.org/fdechaumont/micecraft)
 
 
 
